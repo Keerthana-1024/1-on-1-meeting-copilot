@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>intelliGrow — Manager Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:Arial,sans-serif; background:#f5f5f5; color:#1a1a1a; min-height:100vh; }
+
+.topnav { background:#fff; border-bottom:1px solid #e0e0e0; padding:0 28px; height:52px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+.logo { display:flex; align-items:center; gap:8px; }
+.logo-badge { width:28px; height:28px; background:#7b5ea7; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
+.logo-name { font-size:15px; font-weight:700; }
+.logo-name span { color:#7b5ea7; }
+.nav-tabs { display:flex; }
+.nav-tab { padding:0 16px; height:52px; display:flex; align-items:center; font-size:13px; color:#888; cursor:pointer; border:none; border-bottom:2px solid transparent; background:none; font-family:Arial,sans-serif; transition:all .15s; text-decoration:none; }
+.nav-tab:hover { color:#333; }
+.nav-tab.active { color:#7b5ea7; border-bottom-color:#7b5ea7; font-weight:600; }
+.nav-user { display:flex; align-items:center; gap:8px; }
+.avatar { width:30px; height:30px; border-radius:50%; background:#f3effc; border:2px solid #7b5ea7; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:#7b5ea7; }
+.signout-btn { font-size:11px; color:#aaa; background:none; border:none; cursor:pointer; }
+
+.page { max-width:1100px; margin:0 auto; padding:28px 24px; }
+.page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+.page-title { font-size:20px; font-weight:700; margin-bottom:4px; }
+.page-sub { font-size:13px; color:#888; }
+.cycle-badge { background:#f3effc; border:1px solid #c9b8eb; color:#7b5ea7; font-size:12px; font-weight:600; padding:5px 12px; border-radius:20px; }
+
+.metric-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+.metric-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:16px 18px; }
+.metric-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+.metric-value { font-size:26px; font-weight:700; line-height:1; margin-bottom:4px; }
+.metric-sub { font-size:12px; color:#888; }
+.mup { color:#7b5ea7; }
+
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.section-title { font-size:14px; font-weight:700; }
+
+/* Team table */
+.team-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px 24px; margin-bottom:24px; }
+.team-table { width:100%; border-collapse:collapse; }
+.team-table th { text-align:left; font-size:11px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:.06em; padding:6px 10px 10px; border-bottom:1px solid #e0e0e0; }
+.team-table td { padding:10px; font-size:13px; border-bottom:1px solid #f5f5f5; vertical-align:middle; }
+.team-table tr:last-child td { border-bottom:none; }
+.team-table tr:hover td { background:#faf8ff; }
+.bar-m { width:80px; height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:6px; }
+.bar-m-fill { height:100%; border-radius:3px; }
+.trend-pill { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; }
+.tp-up   { background:#f0faf6; color:#1a8c6e; border:1px solid #b8e0d2; }
+.tp-flat { background:#f5f5f5; color:#888;   border:1px solid #e0e0e0; }
+.tp-down { background:#fff3f3; color:#d32f2f; border:1px solid #f7c5c5; }
+.schbtn { font-size:12px; font-weight:600; padding:5px 12px; border-radius:6px; border:1px solid #c9b8eb; background:#f3effc; color:#7b5ea7; cursor:pointer; font-family:Arial,sans-serif; }
+.schbtn:hover { background:#e8dff7; }
+
+/* Meets */
+.meets-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px 24px; margin-bottom:24px; }
+.meets-controls { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.meets-search { flex:1; min-width:180px; padding:8px 12px; border:1px solid #d0d0d0; border-radius:7px; font-size:13px; outline:none; font-family:Arial,sans-serif; }
+.meets-search:focus { border-color:#7b5ea7; }
+.meets-filter { padding:8px 12px; border:1px solid #d0d0d0; border-radius:7px; font-size:13px; outline:none; font-family:Arial,sans-serif; background:#fff; cursor:pointer; }
+.meet-row { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid #f0f0f0; gap:14px; }
+.meet-row:last-child { border-bottom:none; }
+.meet-row.clickable { cursor:pointer; }
+.meet-row.clickable:hover .meet-title { color:#7b5ea7; }
+.meet-row.unclickable { opacity:.6; cursor:default; }
+.meet-left { flex:1; min-width:0; }
+.meet-title { font-size:13px; font-weight:700; margin-bottom:3px; transition:color .15s; }
+.meet-meta { font-size:11px; color:#888; }
+.meet-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.meet-date { font-size:11px; color:#aaa; }
+.stag { font-size:10px; font-weight:700; padding:3px 9px; border-radius:10px; white-space:nowrap; }
+.stag-upcoming            { background:#e8f0fe; color:#1a56c4; border:1px solid #c5d5f5; }
+.stag-active              { background:#fff8e1; color:#f57c00; border:1px solid #ffe082; }
+.stag-form_not_provided   { background:#fff3f3; color:#d32f2f; border:1px solid #f7c5c5; }
+.stag-self_ratings_not_filled { background:#fff3e0; color:#e65100; border:1px solid #ffcc80; }
+.stag-approval_pending    { background:#f3effc; color:#7b5ea7; border:1px solid #c9b8eb; }
+.stag-completed           { background:#f0faf6; color:#1a8c6e; border:1px solid #b8e0d2; }
+.stag-cancelled           { background:#f5f5f5; color:#bbb; border:1px solid #e0e0e0; }
+.meets-empty { padding:32px; text-align:center; color:#bbb; font-size:13px; }
+
+/* Schedule meeting form */
+.sched-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px 24px; margin-bottom:24px; }
+.fl { font-size:12px; font-weight:600; color:#555; margin-bottom:5px; margin-top:14px; display:block; }
+.inp { width:100%; padding:9px 12px; border:1px solid #d0d0d0; border-radius:7px; font-size:13px; font-family:Arial,sans-serif; outline:none; }
+.inp:focus { border-color:#7b5ea7; }
+sel.inp { background:#fff; }
+.sched-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; padding:9px 20px; border-radius:8px; border:none; background:#7b5ea7; color:#fff; cursor:pointer; font-family:Arial,sans-serif; margin-top:16px; }
+.sched-btn:hover { background:#6a4e96; }
+
+/* Modal */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; align-items:center; justify-content:center; padding:16px; }
+.overlay.open { display:flex; }
+.modal { background:#fff; border-radius:14px; padding:28px 30px; max-width:560px; width:100%; position:relative; max-height:90vh; overflow-y:auto; box-shadow:0 8px 48px rgba(0,0,0,.2); }
+.modal-x { position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:#bbb; }
+.modal-x:hover { color:#555; }
+.modal-title { font-size:17px; font-weight:700; margin-bottom:4px; padding-right:24px; }
+.modal-sub { font-size:12px; color:#888; margin-bottom:18px; }
+.irow { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f5f5f5; font-size:13px; }
+.irow:last-child { border-bottom:none; }
+.ilabel { color:#888; font-size:12px; }
+.mbtn { font-size:13px; font-weight:600; padding:9px 18px; border-radius:8px; border:none; cursor:pointer; font-family:Arial,sans-serif; transition:all .15s; margin-top:14px; display:inline-flex; align-items:center; gap:6px; }
+.mbtn-primary { background:#7b5ea7; color:#fff; }
+.mbtn-primary:hover { background:#6a4e96; }
+.mbtn-green { background:#1a8c6e; color:#fff; }
+.mbtn-green:hover { background:#157a5e; }
+.mbtn-ghost { background:#f5f5f5; color:#444; margin-left:8px; }
+.mbtn-ghost:hover { background:#ebebeb; }
+.mbtn-red { background:#d32f2f; color:#fff; margin-left:8px; }
+.mbtn-red:hover { background:#b71c1c; }
+.info-banner { border-radius:8px; padding:11px 14px; font-size:12px; margin:12px 0; line-height:1.5; }
+.ib-red  { background:#fff3f3; border:1px solid #f7c5c5; color:#d32f2f; }
+.ib-orng { background:#fff8e1; border:1px solid #ffe082; color:#e65100; }
+.ib-grey { background:#f5f5f5; border:1px solid #e0e0e0; color:#666; }
+.ib-pur  { background:#f3effc; border:1px solid #c9b8eb; color:#7b5ea7; }
+.ib-active { background:#fff8e1; border:1px solid #ffe082; border-radius:9px; padding:20px; text-align:center; font-size:15px; font-weight:600; color:#f57c00; margin:12px 0; }
+.dl-row { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+.dl-btn { font-size:12px; font-weight:600; padding:8px 14px; border-radius:8px; border:1px solid #b8e0d2; background:#f0faf6; color:#1a8c6e; cursor:pointer; font-family:Arial,sans-serif; }
+.dl-btn:hover { background:#e0f5ec; }
+.sc-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f5f5f5; }
+.sc-row:last-child { border-bottom:none; }
+.sc-label { font-size:12px; color:#555; flex:0 0 138px; }
+.sc-bars { flex:1; display:flex; flex-direction:column; gap:3px; }
+.sc-bar-wrap { height:5px; background:#f0f0f0; border-radius:3px; overflow:hidden; }
+.sc-bar-fill { height:100%; border-radius:3px; }
+.sc-val { font-size:12px; font-weight:700; min-width:54px; text-align:right; }
+.ni-note { background:#fffbe6; border:1px solid #ffe58f; border-radius:7px; padding:10px 14px; font-size:12px; color:#856404; margin-top:12px; }
+.loading { text-align:center; padding:48px; color:#aaa; font-size:13px; }
+.rsched-inp { width:100%; padding:8px 12px; border:1px solid #d0d0d0; border-radius:7px; font-size:13px; font-family:Arial,sans-serif; outline:none; margin-top:8px; }
+.rsched-inp:focus { border-color:#7b5ea7; }
+.divider { border-top:1px solid #e0e0e0; margin:14px 0; }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div style="display:flex;align-items:center;gap:24px">
+    <div class="logo">
+      <div class="logo-badge">iG</div>
+      <span class="logo-name">intelli<span>Grow</span></span>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="nav-dash" onclick="switchNav('dash')">Team View</button>
+      <button class="nav-tab" id="nav-sched" onclick="switchNav('sched')">Schedule Meeting</button>
+      <a class="nav-tab" href="role_select.html">Switch View</a>
+    </div>
+  </div>
+  <div class="nav-user">
+    <div class="avatar" id="nav-av">?</div>
+    <span style="font-size:13px;color:#444" id="nav-nm">…</span>
+    <button class="signout-btn" onclick="clearSession();location.href='login.html'">Sign out</button>
+  </div>
+</nav>
+
+<div class="page" id="page"><div class="loading">Loading manager dashboard…</div></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/env.js"></script>
+<script src="supabase.js"></script>
+<script>
+requireAuth('login.html');
+const user = getUser();
+document.getElementById('nav-av').textContent = user.name[0].toUpperCase();
+document.getElementById('nav-nm').textContent = user.name + ' · Manager';
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+let CYCLES=[], VEDS=[], REPORTEES=[], ALL_APPRAISALS=[], ALL_MEETINGS=[];
+let USERS_MAP={};
+let meetQ='', meetFilter='';
+
+const fmt   = d => new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const fmtDT = d => new Date(d).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function trnd(arr){ const f=arr.filter(x=>x!==null); return f.length<2?'flat':f[f.length-1]>f[f.length-2]?'up':f[f.length-1]<f[f.length-2]?'down':'flat'; }
+function notImpl(l){ alert(l+' is not yet implemented. Coming soon!'); }
+
+function switchNav(tab) {
+  document.getElementById('nav-dash').classList.toggle('active', tab === 'dash');
+  document.getElementById('nav-sched').classList.toggle('active', tab === 'sched');
+  document.getElementById('tab-dash').style.display = tab === 'dash' ? 'block' : 'none';
+  document.getElementById('tab-sched').style.display = tab === 'sched' ? 'block' : 'none';
+}
+
+async function loadAll(){
+  // Load reportees (employees whose manager_id = current manager)
+  const [cR,vR,repR,uR] = await Promise.all([
+    db.from('cycles').select('*').order('start_date',{ascending:true}),
+    db.from('competencies').select('*'),
+    db.from('users').select('*').eq('manager_id',user.id),
+    db.from('users').select('id,name,email,role')
+  ]);
+  CYCLES    = cR.data||[];
+  VEDS      = vR.data||[];
+  REPORTEES = repR.data||[];
+  (uR.data||[]).forEach(u=>{ USERS_MAP[u.id]=u; });
+
+  if(!REPORTEES.length){ render(); return; }
+
+  const repIds = REPORTEES.map(r=>r.id);
+  const [aR,mR] = await Promise.all([
+    db.from('appraisals').select('*').in('employee_id',repIds),
+    db.from('meetings').select('*').eq('manager_id',user.id).order('scheduled_at',{ascending:false})
+  ]);
+  ALL_APPRAISALS = aR.data||[];
+  ALL_MEETINGS   = mR.data||[];
+  render();
+}
+
+function render(){
+  const ac    = CYCLES.find(c=>c.is_active)||CYCLES[CYCLES.length-1];
+  const acIdx = CYCLES.findIndex(c=>c.is_active);
+  const upcoming   = ALL_MEETINGS.filter(m=>m.status==='upcoming').length;
+  const pending    = ALL_MEETINGS.filter(m=>['form_not_provided','self_ratings_not_filled'].includes(m.status)).length;
+  const completed  = ALL_MEETINGS.filter(m=>m.status==='completed').length;
+  const aprvPend   = ALL_MEETINGS.filter(m=>m.status==='approval_pending').length;
+
+  document.getElementById('page').innerHTML=`
+  <div id="tab-dash">
+  <div class="page-header">
+    <div><div class="page-title">Manager Dashboard</div><div class="page-sub">Team performance overview · ${REPORTEES.length} reportee${REPORTEES.length!==1?'s':''}</div></div>
+    <span class="cycle-badge">Current cycle: ${ac?.name||'—'}</span>
+  </div>
+  <div class="metric-row">
+    <div class="metric-card"><div class="metric-label">Team size</div><div class="metric-value mup">${REPORTEES.length}</div><div class="metric-sub">reportees</div></div>
+    <div class="metric-card"><div class="metric-label">Upcoming meets</div><div class="metric-value">${upcoming}</div><div class="metric-sub">scheduled</div></div>
+    <div class="metric-card"><div class="metric-label">Pending forms</div><div class="metric-value" style="color:${pending>0?'#d32f2f':'#1a1a1a'}">${pending}</div><div class="metric-sub">need attention</div></div>
+    <div class="metric-card"><div class="metric-label">Completed + Approval</div><div class="metric-value">${completed} <span style="font-size:16px;color:#888;font-weight:400">/ ${aprvPend}↑</span></div><div class="metric-sub">done / pending publish</div></div>
+  </div>
+
+  <div class="team-card">
+    <div class="section-header"><span class="section-title">Team Performance — ${ac?.name||'Current cycle'}</span></div>
+    <table class="team-table">
+      <thead><tr><th>Reportee</th>${VEDS.map(v=>`<th>${v.code}</th>`).join('')}<th>Avg</th><th>Trend</th><th>Action</th></tr></thead>
+      <tbody id="team-tbody"></tbody>
+    </table>
+  </div>
+  
+  <div class="meets-card">
+    <div class="section-header" style="margin-bottom:14px">
+      <span class="section-title">Scheduled Meets (All Reportees)</span>
+      <span style="font-size:12px;color:#888" id="meets-cnt"></span>
+    </div>
+    <div class="meets-controls">
+      <input class="meets-search" id="meets-q" type="text" placeholder="Search meetings or reportee…" oninput="meetQ=this.value;renderMeets()">
+      <select class="meets-filter" id="meets-f" onchange="meetFilter=this.value;renderMeets()">
+        <option value="">All statuses</option>
+        <option value="upcoming">Upcoming</option>
+        <option value="active">Active</option>
+        <option value="form_not_provided">Form not provided</option>
+        <option value="self_ratings_not_filled">Self ratings not filled</option>
+        <option value="approval_pending">Approval pending</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div id="meets-list"></div>
+  </div>
+  </div>
+
+  <div id="tab-sched" style="display:none">
+  <div class="sched-card" style="margin-top:24px">
+    <div class="section-header" style="margin-bottom:14px"><span class="section-title">Schedule New Meeting</span></div>
+    <label class="fl">Reportee</label>
+    <select class="inp" id="new-rep" style="background:#fff">
+      ${REPORTEES.map(r=>`<option value="${r.id}">${r.name} (${r.email})</option>`).join('')||'<option disabled>No reportees found</option>'}
+    </select>
+    <label class="fl">Meeting title</label>
+    <input class="inp" id="new-title" type="text" placeholder="e.g. H1 2026 Appraisal Review">
+    <label class="fl">Date & Time</label>
+    <input class="inp" id="new-dt" type="datetime-local">
+    <label class="fl">Duration (minutes)</label>
+    <input class="inp" id="new-dur" type="number" value="30" min="15" max="180">
+    <button class="sched-btn" onclick="schedMeet()">📅 Schedule Meeting</button>
+  </div>
+  </div>`;
+
+  renderTeamTable();
+  renderMeets();
+}
+
+function getScore(vedId,cycleId,empId,type){
+  const a=ALL_APPRAISALS.find(x=>x.competency_id===vedId&&x.cycle_id===cycleId&&x.employee_id===empId);
+  if(!a) return null;
+  return type==='self'?a.self_score:a.manager_score;
+}
+
+function renderTeamTable(){
+  const tbody=document.getElementById('team-tbody'); if(!tbody)return;
+  const acIdx=CYCLES.findIndex(c=>c.is_active);
+  const ac=CYCLES[acIdx];
+  tbody.innerHTML='';
+  if(!REPORTEES.length){
+    tbody.innerHTML='<tr><td colspan="20" style="text-align:center;color:#bbb;padding:24px">No reportees found</td></tr>';
+    return;
+  }
+  REPORTEES.forEach(rep=>{
+    const scores=VEDS.map(v=>getScore(v.id,ac?.id,rep.id,'mgr')||getScore(v.id,ac?.id,rep.id,'self')||0);
+    const avg=scores.length?+(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):0;
+    const selfHistory=CYCLES.map(c=>VEDS.reduce((s,v)=>s+(getScore(v.id,c.id,rep.id,'self')||0),0)/VEDS.length);
+    const t=trnd(selfHistory);
+    const tC=t==='up'?'tp-up':t==='down'?'tp-down':'tp-flat';
+    const tT=t==='up'?'↑ Improving':t==='down'?'↓ Declining':'→ Stable';
+    const tr=document.createElement('tr');
+    const vedCells=VEDS.map((v,i)=>{
+      const s=scores[i];
+      const color=s>=4?'#1a8c6e':s>=3?'#f57c00':s>=1?'#d32f2f':'#ccc';
+      return `<td><div style="display:flex;align-items:center"><div class="bar-m"><div class="bar-m-fill" style="width:${s/5*100}%;background:${color}"></div></div><b style="color:${color};font-size:12px">${s||'—'}</b></div></td>`;
+    }).join('');
+    const avgColor=avg>=4?'#1a8c6e':avg>=3?'#f57c00':avg>=1?'#d32f2f':'#ccc';
+    tr.innerHTML=`<td><b>${rep.name}</b><br><span style="font-size:10px;color:#aaa">${rep.email}</span></td>
+      ${vedCells}
+      <td><b style="color:${avgColor};font-size:14px">${avg||'—'}</b><span style="font-size:11px;color:#aaa">/5</span></td>
+      <td><span class="trend-pill ${tC}">${tT}</span></td>
+      <td><button class="schbtn" onclick="preSchedule('${rep.id}')">+ Meet</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function preSchedule(repId){
+  const el=document.getElementById('new-rep'); if(el)el.value=repId;
+  document.getElementById('new-title')?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function renderMeets(){
+  const list=document.getElementById('meets-list'); if(!list)return;
+  let f=[...ALL_MEETINGS];
+  if(meetFilter) f=f.filter(m=>m.status===meetFilter);
+  if(meetQ){const q=meetQ.toLowerCase();f=f.filter(m=>m.title.toLowerCase().includes(q)||(USERS_MAP[m.reportee_id]?.name||'').toLowerCase().includes(q));}
+  const cnt=document.getElementById('meets-cnt');
+  if(cnt) cnt.textContent=`${f.length} meeting${f.length!==1?'s':''}`;
+  if(!f.length){list.innerHTML='<div class="meets-empty">No meetings found.</div>';return;}
+  list.innerHTML=f.map(m=>{
+    const repName=USERS_MAP[m.reportee_id]?.name||'—';
+    const unclick=m.status==='cancelled';
+    const tag=m.status.replace(/_/g,' ');
+    return `<div class="meet-row ${unclick?'unclickable':'clickable'}" ${!unclick?`onclick="openMeet('${m.id}')"`:''}>
+      <div class="meet-left">
+        <div class="meet-title">${m.title}</div>
+        <div class="meet-meta">Reportee: ${repName} · ${fmtDT(m.scheduled_at)} · ${m.duration_minutes} min</div>
+      </div>
+      <div class="meet-right">
+        <span class="meet-date">${fmt(m.scheduled_at)}</span>
+        <span class="stag stag-${m.status}">${tag}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openMeet(id){
+  const m=ALL_MEETINGS.find(x=>x.id===id); if(!m)return;
+  const repName=USERS_MAP[m.reportee_id]?.name||'—';
+  let body=`<div class="modal-title">${m.title}</div>
+    <div class="modal-sub">Reportee: ${repName}</div>
+    <div class="irow"><span class="ilabel">Date & Time</span><span>${fmtDT(m.scheduled_at)}</span></div>
+    <div class="irow"><span class="ilabel">Duration</span><span>${m.duration_minutes} min</span></div>
+    <div class="irow"><span class="ilabel">Status</span><span class="stag stag-${m.status}">${m.status.replace(/_/g,' ')}</span></div>
+    <div class="irow"><span class="ilabel">Reportee</span><span>${repName}</span></div>`;
+
+  if(m.status==='active'){
+    body+=`<div class="ib-active" id="active-meet-banner">🟡 This meeting is currently active</div>
+           <button id="mic-btn" class="mbtn mbtn-green" onclick="openSttBox()" style="margin-top:10px">🎙️ Start Recording</button>
+           <div id="stt-container" style="display:none;margin-top:14px">
+             <textarea id="stt-text" style="width:100%;height:100px;border-radius:8px;padding:10px;border:1px solid #d0d0d0;font-family:Arial;font-size:13px;resize:vertical" placeholder="Speech will appear here..." readonly></textarea>
+             <div style="display:flex;gap:10px;margin-top:10px">
+               <button id="speak-btn" class="mbtn mbtn-green" onclick="startStt()">▶ Speak</button>
+               <button id="stop-btn" class="mbtn mbtn-red" onclick="stopStt('${m.id}')" style="display:none">⏹ Stop & Conclude</button>
+             </div>
+           </div>`;
+  } else if(m.status==='form_not_provided'){
+    body+=`<div class="info-banner ib-red">⚠ The appraisal form has not been provided for this meeting. Choose how to create it — this unlocks ${repName}'s self-assessment flow.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px">
+
+        <div style="border:1px solid #c5b3e0;border-radius:10px;padding:14px 14px 12px;background:#f9f6ff">
+          <button onclick="location.href='manager_rating.html?meeting=${m.id}&reportee=${m.reportee_id}'"
+            style="width:100%;padding:9px 10px;background:#7b5ea7;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">
+            📝 Build Form Manually
+          </button>
+          <div style="font-size:11px;color:#6b5c8a;margin-top:8px;line-height:1.5">
+            Fill in VED dimension questions and ratings directly using the standard appraisal form builder.
+          </div>
+        </div>
+
+        <div style="border:1px solid #b0c4d8;border-radius:10px;padding:14px 14px 12px;background:#f5f8fb">
+          <button onclick="alert('Coming soon: Upload a pre-filled Excel sheet. Each row maps to a VED dimension with questions and weights. Instantly converts to a ready-to-send form.')"
+            style="width:100%;padding:9px 10px;background:#2e6a9e;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">
+            📊 Import Excel Template
+          </button>
+          <div style="font-size:11px;color:#3a5a74;margin-top:8px;line-height:1.5">
+            Upload a pre-filled Excel with VED scores and questions. Each row = one dimension. Auto-maps to the appraisal form.
+          </div>
+        </div>
+
+        <div style="border:1px solid #a8d0c2;border-radius:10px;padding:14px 14px 12px;background:#f4faf8">
+          <button onclick="alert('Coming soon: Upload a Word or PDF document. AI extracts relevant content, maps it to VED dimensions, and auto-generates appraisal questions for your review.')"
+            style="width:100%;padding:9px 10px;background:#1a7a5e;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">
+            📄 Generate from Document
+          </button>
+          <div style="font-size:11px;color:#1a5a47;margin-top:8px;line-height:1.5">
+            Upload a Word or PDF. AI reads the document, maps content to VED dimensions, and generates questions for your review.
+          </div>
+        </div>
+
+      </div>`;
+  } else if(m.status==='self_ratings_not_filled'){
+    body+=`<div class="info-banner ib-orng">⏳ Waiting for ${repName} to fill their self-assessment. Form filled: No.</div>`;
+  } else if(m.status==='approval_pending'){
+    body+=`<div class="info-banner ib-pur">✅ You have rated ${repName}. Review and publish the AI-generated action items.</div>
+      <button class="mbtn mbtn-green" onclick="location.href='manager_rating.html?meeting=${m.id}&reportee=${m.reportee_id}&tab=docs'">Review Action Items & Publish →</button>`;
+  } else if(m.status==='completed'){
+    const acIdx=CYCLES.findIndex(c=>c.is_active);
+    body+=`<div class="dl-row">
+      <button class="dl-btn" onclick="downloadDoc('${m.id}', 'transcript')">📄 Transcript (JSON)</button>
+      <button class="dl-btn" onclick="downloadDoc('${m.id}', 'summary')">📋 Summary (TXT)</button>
+      <button class="dl-btn" onclick="downloadDoc('${m.id}', 'actions')">✅ Action Items (JSON)</button>
+    </div>
+    <div style="margin-top:14px"><div style="font-size:13px;font-weight:700;margin-bottom:10px">Self vs Manager scores</div>`;
+    VEDS.forEach(v=>{
+      const s=acIdx>=0?getScore(v.id,CYCLES[acIdx]?.id,m.reportee_id,'self')||0:0;
+      const mg=acIdx>=0?getScore(v.id,CYCLES[acIdx]?.id,m.reportee_id,'mgr')||0:0;
+      body+=`<div class="sc-row"><span class="sc-label">${v.name}</span>
+        <div class="sc-bars">
+          <div class="sc-bar-wrap"><div class="sc-bar-fill" style="width:${s/5*100}%;background:#1a8c6e"></div></div>
+          <div class="sc-bar-wrap" style="margin-top:3px"><div class="sc-bar-fill" style="width:${mg/5*100}%;background:#7b5ea7"></div></div>
+        </div>
+        <span class="sc-val"><span style="color:#1a8c6e">${s}</span>/<span style="color:#7b5ea7">${mg}</span></span>
+      </div>`;
+    });
+    body+=`</div>`;
+  } else if(m.status==='upcoming'){
+    body+=`<div class="info-banner ib-grey">Meeting is scheduled. Provide the appraisal form at least 3 days before.</div>
+      <button class="mbtn mbtn-primary" onclick="location.href='manager_rating.html?meeting=${m.id}&reportee=${m.reportee_id}'">Provide Form →</button>`;
+  }
+
+  // Reschedule & Cancel for non-terminal statuses
+  const terminal=['completed','cancelled'];
+  if(!terminal.includes(m.status)){
+    body+=`<div class="divider"></div>
+      <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Reschedule</div>
+      <input type="datetime-local" class="rsched-inp" id="rsched-dt" value="${new Date(m.scheduled_at).toISOString().slice(0,16)}">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="mbtn mbtn-ghost" onclick="rescheduleMeet('${m.id}')">📅 Reschedule</button>
+        <button class="mbtn mbtn-red" onclick="cancelMeet('${m.id}')">✕ Cancel Meet</button>
+      </div>`;
+  }
+
+  document.getElementById('modal-body').innerHTML=body;
+  document.getElementById('overlay').classList.add('open');
+}
+
+async function approveMeet(id){
+  await db.from('meetings').update({status:'completed'}).eq('id',id);
+  const m=ALL_MEETINGS.find(x=>x.id===id); if(m)m.status='completed';
+  closeModal(); renderMeets(); renderTeamTable();
+  setTimeout(()=>showToast('✓ Meeting approved & published!'),100);
+}
+
+async function rescheduleMeet(id){
+  const dt=document.getElementById('rsched-dt')?.value;
+  if(!dt){alert('Please pick a new date/time.');return;}
+  await db.from('meetings').update({scheduled_at:new Date(dt).toISOString()}).eq('id',id);
+  const m=ALL_MEETINGS.find(x=>x.id===id); if(m)m.scheduled_at=new Date(dt).toISOString();
+  closeModal(); renderMeets();
+  setTimeout(()=>showToast('✓ Meeting rescheduled!'),100);
+}
+
+async function cancelMeet(id){
+  if(!confirm('Cancel this meeting?'))return;
+  await db.from('meetings').update({status:'cancelled'}).eq('id',id);
+  const m=ALL_MEETINGS.find(x=>x.id===id); if(m)m.status='cancelled';
+  closeModal(); renderMeets(); renderTeamTable();
+}
+
+// ── Deepgram STT Logic ─────────────────────────────────────────────
+let dgSocket = null;
+let mediaRecorder = null;
+
+function openSttBox() {
+  document.getElementById('stt-container').style.display = 'block';
+  document.getElementById('mic-btn').style.display = 'none';
+}
+
+async function startStt() {
+  if (!window.ENV.DEEPGRAM_API_KEY) {
+    alert("Deepgram API Key not found in environment variables.");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // Connect to Deepgram WebSocket
+    dgSocket = new WebSocket('wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&interim_results=true&encoding=linear16&sample_rate=16000&channels=1', [
+      'token',
+      window.ENV.DEEPGRAM_API_KEY,
+    ]);
+
+    dgSocket.onopen = () => {
+      document.getElementById('speak-btn').style.display = 'none';
+      document.getElementById('stop-btn').style.display = 'inline-flex';
+      const banner = document.getElementById('active-meet-banner');
+      banner.style.background = '#e0f5ec';
+      banner.style.borderColor = '#b8e0d2';
+      banner.style.color = '#1a8c6e';
+      banner.innerHTML = '🔴 Listening and Transcribing...';
+
+      // Capture Audio and send to Deepgram
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      const source = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+
+      processor.onaudioprocess = (e) => {
+        if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+          const channelData = e.inputBuffer.getChannelData(0);
+          const pcm16 = new Int16Array(channelData.length);
+          for (let i = 0; i < channelData.length; i++) {
+            pcm16[i] = Math.min(1, channelData[i]) * 0x7FFF;
+          }
+          dgSocket.send(pcm16.buffer);
+        }
+      };
+
+      // Store references to clean up later
+      mediaRecorder = { stream, audioContext, processor, source };
+    };
+
+    dgSocket.onmessage = (message) => {
+      const received = JSON.parse(message.data);
+      const transcript = received.channel?.alternatives[0]?.transcript;
+      if (transcript && received.is_final) {
+        const ta = document.getElementById('stt-text');
+        ta.value += (ta.value ? "\\n" : "") + "Speaker: " + transcript;
+        ta.scrollTop = ta.scrollHeight;
+      }
+    };
+
+    dgSocket.onerror = (e) => {
+      console.error("Deepgram WebSocket Error", e);
+      alert("Error connecting to Deepgram.");
+      stopStt();
+    };
+
+  } catch (err) {
+    console.error("Error accessing microphone:", err);
+    alert("Microphone access denied or not available.");
+  }
+}
+
+async function stopStt(meetingId) {
+  if (dgSocket) { dgSocket.close(); dgSocket = null; }
+  if (mediaRecorder) {
+    mediaRecorder.processor.disconnect();
+    mediaRecorder.source.disconnect();
+    mediaRecorder.audioContext.close();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    mediaRecorder = null;
+  }
+  
+  if (meetingId) {
+    // Change status to approval_pending
+    await db.from('meetings').update({status:'approval_pending'}).eq('id',meetingId);
+    const m = ALL_MEETINGS.find(x=>x.id===meetingId); if(m)m.status='approval_pending';
+    closeModal(); 
+    renderMeets(); 
+    showToast('✓ Meeting concluded and sent for approval!');
+  }
+}
+
+
+async function downloadDoc(meetingId, type) {
+  const m = ALL_MEETINGS.find(x => x.id === meetingId);
+  if (!m) return;
+  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url').eq('id', meetingId).single();
+  
+  let urlField = '';
+  let filename = '';
+  
+  if (type === 'transcript') {
+    urlField = mtg?.transcript_url;
+    filename = `transcript_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  } else if (type === 'summary') {
+    urlField = mtg?.summary_url;
+    filename = `summary_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+  } else if (type === 'actions') {
+    urlField = mtg?.action_items_url;
+    filename = `action_items_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  }
+
+  if (!urlField) {
+    alert('Document is not available for this meeting.');
+    return;
+  }
+
+  if (urlField.startsWith('data:')) {
+    // Live generated data URI
+    const a = document.createElement('a');
+    a.href = urlField;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    // Filename in DB -> fetch from Azure Blob Storage
+    const downloadUrl = `${BLOB_BASE_URL}/${urlField}${BLOB_SAS_TOKEN}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    a.target = '_blank'; // Fallback to open in new tab if download is blocked
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+function preSchedule(repId){
+  // Switch to Schedule Meeting tab
+  switchNav('sched');
+  // Preselect the reportee in the dropdown
+  const sel=document.getElementById('new-rep');
+  if(sel) sel.value=repId;
+  // Focus title
+  document.getElementById('new-title')?.focus();
+}
+
+async function schedMeet(){
+  const repId=document.getElementById('new-rep')?.value;
+  const title=(document.getElementById('new-title')?.value||'').trim();
+  const dt=document.getElementById('new-dt')?.value;
+  const dur=parseInt(document.getElementById('new-dur')?.value)||30;
+  if(!repId||!title||!dt){alert('Please fill all fields.');return;}
+  const {error}=await db.from('meetings').insert({
+    manager_id:user.id, reportee_id:repId, title, scheduled_at:new Date(dt).toISOString(), duration_minutes:dur, status:'upcoming'
+  });
+  if(error){alert('Error: '+error.message);return;}
+  // Reload
+  await loadAll();
+  document.getElementById('new-title').value='';
+  document.getElementById('new-dt').value='';
+  showToast('✓ Meeting scheduled!');
+}
+
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:#1a8c6e;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+  t.textContent=msg; document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2800);
+}
+
+loadAll();
+</script>
+</body>
+</html>

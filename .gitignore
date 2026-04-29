@@ -1,0 +1,6 @@
+.env
+app/.env
+__pycache__/
+node_modules/
+app/mocked_files/
+app/cl_mock3/

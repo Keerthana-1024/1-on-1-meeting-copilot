@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>intelliGrow — Schedule a Meeting</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; min-height: 100vh; }
+
+/* nav */
+.topnav {
+  background: #fff; border-bottom: 1px solid #e0e0e0;
+  padding: 0 28px; height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-badge { width: 28px; height: 28px; background: #1a8c6e; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+.logo-name { font-size: 15px; font-weight: 700; }
+.logo-name span { color: #1a8c6e; }
+.back-btn { font-size: 13px; color: #555; background: none; border: 1px solid #d0d0d0; padding: 6px 14px; border-radius: 7px; cursor: pointer; transition: background .15s; }
+.back-btn:hover { background: #f5f5f5; }
+
+/* page */
+.page { max-width: 760px; margin: 0 auto; padding: 32px 24px; }
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.page-sub { font-size: 13px; color: #888; margin-bottom: 32px; }
+
+/* form card */
+.form-card {
+  background: #fff; border: 1px solid #e0e0e0; border-radius: 12px;
+  padding: 28px 32px; margin-bottom: 20px;
+}
+.form-section-label {
+  font-size: 11px; font-weight: 700; color: #aaa;
+  text-transform: uppercase; letter-spacing: .07em; margin-bottom: 18px;
+}
+.field-group { margin-bottom: 20px; }
+.field-label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+.field-hint { font-size: 11px; color: #888; margin-bottom: 8px; line-height: 1.5; }
+.field-req { color: #d32f2f; }
+
+.input, .select, .textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid #d0d0d0; border-radius: 8px;
+  font-size: 13px; font-family: Arial, sans-serif;
+  background: #fff; color: #1a1a1a;
+  outline: none; transition: border-color .15s;
+}
+.input:focus, .select:focus, .textarea:focus { border-color: #1a8c6e; }
+.select { cursor: pointer; }
+.textarea { resize: vertical; line-height: 1.6; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Reportee picker */
+.reportee-cards { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.rep-card {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; border: 2px solid #e0e0e0; border-radius: 10px;
+  padding: 10px 14px; cursor: pointer; transition: all .15s; flex: 0 0 auto;
+}
+.rep-card:hover { border-color: #b8e0d2; background: #f9fffe; }
+.rep-card.selected { border-color: #1a8c6e; background: #f0faf6; }
+.rep-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #e8f5f0; border: 2px solid #1a8c6e;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #1a8c6e; flex-shrink: 0;
+}
+.rep-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.rep-role { font-size: 11px; color: #888; }
+
+/* Agenda items */
+.agenda-item {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.agenda-item .input { flex: 1; }
+.remove-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: 1px solid #f7c5c5;
+  background: #fff3f3; color: #d32f2f; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.add-agenda-btn {
+  font-size: 12px; color: #1a8c6e; background: none; border: 1px dashed #b8e0d2;
+  border-radius: 7px; padding: 7px 14px; cursor: pointer; transition: background .15s; width: 100%;
+}
+.add-agenda-btn:hover { background: #f0faf6; }
+
+/* Duration quick select */
+.duration-chips { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.duration-chip {
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid #e0e0e0; background: #fff; color: #555; cursor: pointer;
+  transition: all .15s;
+}
+.duration-chip:hover { border-color: #b8e0d2; color: #1a8c6e; }
+.duration-chip.selected { border-color: #1a8c6e; background: #f0faf6; color: #1a8c6e; }
+
+/* Alert */
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+.alert.show { display: block; }
+.alert-error { background: #fff3f3; border: 1px solid #f7c5c5; color: #d32f2f; }
+.alert-success { background: #f0faf6; border: 1px solid #b8e0d2; color: #1a6b52; }
+
+/* Submit */
+.submit-row { display: flex; align-items: center; gap: 14px; }
+.btn-submit {
+  padding: 12px 28px; border-radius: 9px; border: none;
+  background: #1a8c6e; color: #fff; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background .15s; font-family: Arial, sans-serif;
+}
+.btn-submit:hover { background: #157a5e; }
+.btn-submit:disabled { background: #b8e0d2; cursor: default; }
+.btn-cancel { padding: 12px 20px; border-radius: 9px; border: 1px solid #d0d0d0; background: #fff; color: #555; font-size: 14px; cursor: pointer; font-family: Arial, sans-serif; }
+.btn-cancel:hover { background: #f5f5f5; }
+
+/* Success state */
+.success-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 60vh; text-align: center;
+}
+.success-icon {
+  width: 72px; height: 72px; border-radius: 50%; background: #1a8c6e;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; color: #fff; margin-bottom: 22px;
+}
+.success-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.success-sub { font-size: 14px; color: #666; line-height: 1.7; max-width: 440px; margin-bottom: 28px; }
+
+.loading { text-align: center; padding: 40px; color: #888; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="logo">
+    <div class="logo-badge">iG</div>
+    <span class="logo-name">intelli<span>Grow</span></span>
+  </div>
+  <button class="back-btn" onclick="window.location.href='manager_dashboard.html'">← Back to Dashboard</button>
+</nav>
+
+<div class="page" id="page-root">
+
+  <!-- ── Loading state ───────────────────────────── -->
+  <div id="phase-loading" class="loading">Loading…</div>
+
+  <!-- ── Form state ──────────────────────────────── -->
+  <div id="phase-form" style="display:none">
+    <div class="page-title">Schedule a Meeting</div>
+    <div class="page-sub">Set up a 1-on-1 review or check-in with one of your reportees.</div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <!-- Card 1 — Who -->
+    <div class="form-card">
+      <div class="form-section-label">Who is this meeting with?</div>
+      <div class="field-group">
+        <div class="field-label">Select reportee <span class="field-req">*</span></div>
+        <div class="reportee-cards" id="reportee-cards">
+          <div class="loading" style="padding:10px 0">Loading reportees…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 — What -->
+    <div class="form-card">
+      <div class="form-section-label">What is this meeting about?</div>
+      <div class="field-group">
+        <div class="field-label">Meeting title <span class="field-req">*</span></div>
+        <div class="field-hint">E.g. "H1 2026 Appraisal Review", "Mid-Year Check-in", "Urgent Sync"</div>
+        <input class="input" id="field-title" type="text" placeholder="Meeting title…" maxlength="120">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Agenda items <span style="color:#aaa;font-weight:400;font-size:11px">(optional)</span></div>
+        <div id="agenda-list"></div>
+        <button class="add-agenda-btn" onclick="addAgendaItem()">+ Add agenda item</button>
+      </div>
+      <div class="field-group" style="margin-bottom:0">
+        <div class="field-label">Notes <span style="color:#aaa;font-weight:400;font-size:11px">(optional)</span></div>
+        <textarea class="textarea" id="field-notes" rows="3" placeholder="Any pre-meeting notes or context for the reportee…"></textarea>
+      </div>
+    </div>
+
+    <!-- Card 3 — When -->
+    <div class="form-card">
+      <div class="form-section-label">When?</div>
+      <div class="two-col" style="margin-bottom:20px">
+        <div class="field-group" style="margin-bottom:0">
+          <div class="field-label">Date & time <span class="field-req">*</span></div>
+          <input class="input" id="field-datetime" type="datetime-local">
+        </div>
+        <div class="field-group" style="margin-bottom:0">
+          <div class="field-label">Duration (minutes)</div>
+          <div class="duration-chips" id="duration-chips">
+            <div class="duration-chip" onclick="selectDuration(15)">15 min</div>
+            <div class="duration-chip selected" onclick="selectDuration(30)">30 min</div>
+            <div class="duration-chip" onclick="selectDuration(45)">45 min</div>
+            <div class="duration-chip" onclick="selectDuration(60)">60 min</div>
+            <div class="duration-chip" onclick="selectDuration(90)">90 min</div>
+          </div>
+          <input class="input" id="field-duration" type="number" placeholder="Or enter custom" style="margin-top:10px" min="5" max="240">
+        </div>
+      </div>
+      <div class="field-group" style="margin-bottom:0">
+        <div class="field-label">Initial status</div>
+        <select class="select" id="field-status">
+          <option value="upcoming" selected>Upcoming — scheduled for the future</option>
+          <option value="active">Active — happening now</option>
+          <option value="form_not_provided">Form not provided — needs a rating form</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Submit row -->
+    <div class="submit-row">
+      <button class="btn-submit" id="btn-submit" onclick="submitMeeting()">Schedule Meeting →</button>
+      <button class="btn-cancel" onclick="window.location.href='manager_dashboard.html'">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ── Success state ───────────────────────────── -->
+  <div id="phase-success" style="display:none">
+    <div class="success-wrap">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Meeting scheduled!</div>
+      <div class="success-sub" id="success-msg">Your meeting has been saved and will appear in Scheduled Meets for both you and your reportee.</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <button class="btn-submit" onclick="scheduleAnother()">Schedule another →</button>
+        <button class="btn-cancel" onclick="window.location.href='manager_dashboard.html'">Back to Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script src="/env.js"></script>
+<script src="supabase.js"></script>
+<script>
+requireAuth('login.html');
+const user = getUser();
+
+let REPORTEES = [];
+let selectedReporteeId = null;
+let selectedDuration = 30;
+let agendaCount = 0;
+
+// ── Init ─────────────────────────────────────────────────────────
+async function init() {
+  // Set default datetime to tomorrow at 10:00
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(10, 0, 0, 0);
+  document.getElementById('field-datetime').value = tomorrow.toISOString().slice(0, 16);
+
+  // Load reportees
+  const { data, error } = await db.from('users').select('*').eq('manager_id', user.id);
+  REPORTEES = data || [];
+
+  document.getElementById('phase-loading').style.display = 'none';
+  document.getElementById('phase-form').style.display = 'block';
+
+  renderRepCards();
+}
+
+// ── Reportee picker ──────────────────────────────────────────────
+function renderRepCards() {
+  const container = document.getElementById('reportee-cards');
+  if (!REPORTEES.length) {
+    container.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0">You have no reportees yet. Add them via the registration page.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  REPORTEES.forEach(rep => {
+    const card = document.createElement('div');
+    card.className = 'rep-card' + (selectedReporteeId === rep.id ? ' selected' : '');
+    card.innerHTML = `
+      <div class="rep-avatar">${rep.name[0].toUpperCase()}</div>
+      <div>
+        <div class="rep-name">${rep.name}</div>
+        <div class="rep-role">${rep.role}</div>
+      </div>`;
+    card.onclick = () => { selectedReporteeId = rep.id; renderRepCards(); };
+    container.appendChild(card);
+  });
+}
+
+// ── Duration chips ───────────────────────────────────────────────
+function selectDuration(mins) {
+  selectedDuration = mins;
+  document.getElementById('field-duration').value = '';
+  document.querySelectorAll('.duration-chip').forEach(c => {
+    c.classList.toggle('selected', parseInt(c.textContent) === mins);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('field-duration').addEventListener('input', function() {
+    if (this.value) {
+      selectedDuration = parseInt(this.value);
+      document.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
+    }
+  });
+});
+
+// ── Agenda items ─────────────────────────────────────────────────
+function addAgendaItem(value = '') {
+  agendaCount++;
+  const id = `agenda-${agendaCount}`;
+  const div = document.createElement('div');
+  div.className = 'agenda-item';
+  div.id = id;
+  div.innerHTML = `
+    <span style="font-size:11px;color:#aaa;font-weight:700;min-width:18px">${agendaCount}.</span>
+    <input class="input" type="text" placeholder="e.g. Review Q1 deliverables" value="${value}">
+    <button class="remove-btn" onclick="removeAgendaItem('${id}')">✕</button>`;
+  document.getElementById('agenda-list').appendChild(div);
+}
+
+function removeAgendaItem(id) {
+  document.getElementById(id)?.remove();
+}
+
+function getAgendaItems() {
+  return [...document.querySelectorAll('#agenda-list .agenda-item input')]
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+// ── Alert helpers ────────────────────────────────────────────────
+function showAlert(msg, type = 'error') {
+  const box = document.getElementById('alert-box');
+  box.className = `alert show alert-${type}`;
+  box.textContent = msg;
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function hideAlert() { document.getElementById('alert-box').classList.remove('show'); }
+
+// ── Submit ───────────────────────────────────────────────────────
+async function submitMeeting() {
+  hideAlert();
+
+  const title    = document.getElementById('field-title').value.trim();
+  const dtValue  = document.getElementById('field-datetime').value;
+  const status   = document.getElementById('field-status').value;
+  const dur      = document.getElementById('field-duration').value ? parseInt(document.getElementById('field-duration').value) : selectedDuration;
+
+  // Validation
+  if (!selectedReporteeId) { showAlert('Please select a reportee.'); return; }
+  if (!title) { showAlert('Please enter a meeting title.'); return; }
+  if (!dtValue) { showAlert('Please pick a date and time.'); return; }
+  if (dur < 5 || dur > 480) { showAlert('Duration must be between 5 and 480 minutes.'); return; }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'Scheduling…';
+
+  const agenda = getAgendaItems();
+  const notes  = document.getElementById('field-notes').value.trim();
+
+  // Build title with agenda context if available
+  const fullTitle = title + (agenda.length ? ` · ${agenda.join(' · ')}` : '');
+
+  const { data, error } = await db.from('meetings').insert({
+    manager_id: user.id,
+    reportee_id: selectedReporteeId,
+    title: fullTitle.substring(0, 200),
+    scheduled_at: new Date(dtValue).toISOString(),
+    duration_minutes: dur,
+    status: status,
+  }).select().single();
+
+  btn.disabled = false; btn.textContent = 'Schedule Meeting →';
+
+  if (error) { showAlert('Failed to schedule meeting: ' + error.message); return; }
+
+  const rep = REPORTEES.find(r => r.id === selectedReporteeId);
+  const fmtDt = new Date(dtValue).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  document.getElementById('success-msg').textContent =
+    `"${title}" with ${rep?.name || 'your reportee'} on ${fmtDt} (${dur} min) has been saved. It will appear in Scheduled Meets for both of you.`;
+
+  document.getElementById('phase-form').style.display = 'none';
+  document.getElementById('phase-success').style.display = 'block';
+}
+
+function scheduleAnother() {
+  selectedReporteeId = null;
+  selectedDuration = 30;
+  agendaCount = 0;
+  document.getElementById('agenda-list').innerHTML = '';
+  document.getElementById('field-title').value = '';
+  document.getElementById('field-notes').value = '';
+  document.getElementById('field-status').value = 'upcoming';
+  selectDuration(30);
+  renderRepCards();
+  document.getElementById('phase-success').style.display = 'none';
+  document.getElementById('phase-form').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>intelliGrow — Self-Assessment</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; }
+.topnav { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-badge { width: 28px; height: 28px; background: #1a8c6e; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+.logo-name { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+.logo-name span { color: #1a8c6e; }
+.nav-meta { font-size: 12px; color: #888; }
+.nav-user { display: flex; align-items: center; gap: 8px; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: #e8f5f0; border: 2px solid #1a8c6e; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #1a8c6e; }
+.nav-user-name { font-size: 13px; color: #444; }
+.page-wrap { display: flex; min-height: calc(100vh - 52px); }
+.sidebar { width: 240px; flex-shrink: 0; background: #fff; border-right: 1px solid #e0e0e0; display: flex; flex-direction: column; padding: 20px 0; }
+.sidebar-section { padding: 0 16px 16px; border-bottom: 1px solid #e0e0e0; margin-bottom: 16px; }
+.sidebar-label { font-size: 10px; font-weight: 700; color: #aaa; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
+.progress-bar-wrap { height: 5px; background: #f0f0f0; border-radius: 3px; margin-bottom: 6px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: #1a8c6e; border-radius: 3px; transition: width .4s ease; }
+.progress-text { font-size: 12px; color: #888; }
+.progress-text b { color: #1a8c6e; }
+.dim-nav-list { padding: 0 8px; flex: 1; }
+.dim-nav-btn { width: 100%; text-align: left; background: transparent; border: none; border-left: 3px solid transparent; border-radius: 0 8px 8px 0; padding: 9px 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 3px; transition: all .15s; }
+.dim-nav-btn:hover { background: #f5f5f5; }
+.dim-nav-btn.active { background: #f0faf6; border-left-color: #1a8c6e; }
+.dim-code { width: 30px; height: 30px; border-radius: 7px; background: #f0f0f0; border: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #888; flex-shrink: 0; transition: all .2s; }
+.dim-nav-btn.active .dim-code { background: #e8f5f0; border-color: #1a8c6e; color: #1a8c6e; }
+.dim-nav-btn.done .dim-code { background: #1a8c6e; border-color: #1a8c6e; color: #fff; }
+.dim-nav-info { min-width: 0; }
+.dim-nav-name { font-size: 12px; font-weight: 500; color: #555; line-height: 1.3; margin-bottom: 2px; }
+.dim-nav-btn.active .dim-nav-name { color: #1a1a1a; }
+.dim-nav-btn.done .dim-nav-name { color: #1a8c6e; }
+.dim-nav-meta { display: flex; align-items: center; gap: 6px; }
+.type-badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; letter-spacing: .03em; }
+.type-f { background: #e8f0fe; color: #1a56c4; }
+.type-nf { background: #f0f0f0; color: #888; }
+.dim-score-preview { font-size: 11px; font-weight: 600; color: #1a8c6e; margin-left: auto; }
+.sidebar-submit { padding: 16px; margin-top: auto; border-top: 1px solid #e0e0e0; }
+.submit-btn { width: 100%; padding: 11px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.submit-btn.ready { background: #1a8c6e; color: #fff; }
+.submit-btn.not-ready { background: #f0f0f0; color: #aaa; cursor: default; }
+.main-content { flex: 1; padding: 24px 32px; max-width: 720px; overflow-y: auto; }
+.dim-header-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.dim-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.dim-title { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+.type-pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; }
+.functional { background: #e8f0fe; color: #1a56c4; }
+.nonfunctional { background: #f0f0f0; color: #666; }
+.weight-chip { font-size: 11px; color: #888; background: #f5f5f5; padding: 3px 8px; border-radius: 4px; }
+.ved-expectation-box { background: #f0faf6; border: 1px solid #b8e0d2; border-radius: 7px; padding: 10px 14px; font-size: 12px; color: #444; line-height: 1.6; }
+.ved-expectation-box b { color: #1a8c6e; }
+.step-track { display: flex; gap: 5px; margin-bottom: 16px; }
+.step-seg { flex: 1; height: 3px; border-radius: 2px; background: #e0e0e0; transition: background .3s; }
+.step-seg.done { background: #1a8c6e; }
+.step-seg.active { background: #1a8c6e; opacity: .5; }
+.field-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+.field-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.field-num { width: 24px; height: 24px; border-radius: 6px; background: #f0faf6; border: 1px solid #b8e0d2; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1a8c6e; flex-shrink: 0; margin-top: 1px; }
+.field-label { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 2px; }
+.field-label .req { color: #d32f2f; }
+.field-hint { font-size: 11px; color: #888; line-height: 1.5; }
+textarea { width: 100%; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #333; background: #fff; border: 1px solid #d0d0d0; border-radius: 7px; padding: 10px 12px; resize: vertical; transition: border-color .15s; outline: none; }
+textarea:focus { border-color: #1a8c6e; }
+.char-count { display: flex; justify-content: flex-end; font-size: 11px; margin-top: 5px; color: #aaa; }
+.char-ok { color: #1a8c6e; font-weight: 500; }
+.char-warn { color: #f57c00; }
+.score-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.score-btn { flex: 1; min-width: 80px; padding: 12px 8px; border-radius: 8px; border: 1.5px solid #e0e0e0; background: #fff; cursor: pointer; text-align: center; transition: all .15s; }
+.score-btn:hover { border-color: #b8e0d2; background: #f8fffe; }
+.score-btn.selected { border-color: #1a8c6e; background: #f0faf6; }
+.score-num { font-size: 22px; font-weight: 700; color: #bbb; line-height: 1; margin-bottom: 4px; transition: color .15s; }
+.score-btn.selected .score-num { color: #1a8c6e; }
+.score-label { font-size: 10px; font-weight: 500; color: #bbb; line-height: 1.3; transition: color .15s; }
+.score-btn.selected .score-label { color: #1a8c6e; }
+.score-hint-box { margin-top: 12px; padding: 10px 14px; background: #f0faf6; border: 1px solid #b8e0d2; border-radius: 7px; font-size: 12px; color: #444; display: none; }
+.score-hint-box.visible { display: block; }
+.nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+.btn { font-size: 13px; font-weight: 500; padding: 8px 18px; border-radius: 7px; border: 1px solid #d0d0d0; background: #fff; color: #333; cursor: pointer; transition: all .15s; }
+.btn:hover:not(:disabled) { background: #f5f5f5; }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn-primary { background: #1a8c6e; color: #fff; border-color: #1a8c6e; }
+.btn-primary:hover:not(:disabled) { background: #157a5e; }
+.page-counter { font-size: 12px; color: #888; }
+.tips-panel { width: 200px; flex-shrink: 0; background: #fff; border-left: 1px solid #e0e0e0; padding: 20px 16px; }
+.tips-label { font-size: 10px; font-weight: 700; color: #aaa; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 14px; }
+.tip-item { display: flex; gap: 8px; margin-bottom: 14px; }
+.tip-dot { width: 6px; height: 6px; border-radius: 50%; background: #1a8c6e; flex-shrink: 0; margin-top: 5px; }
+.tip-text { font-size: 12px; color: #666; line-height: 1.55; }
+.score-preview-box { margin-top: 20px; border-top: 1px solid #e0e0e0; padding-top: 16px; }
+.score-preview-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+.score-preview-row:last-child { border-bottom: none; }
+.score-preview-code { color: #888; }
+.score-preview-val { font-weight: 600; color: #1a8c6e; }
+.score-preview-empty { color: #ccc; }
+.tab-bar { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 20px; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-size: 13px; color: #888; cursor: pointer; font-family: Arial, sans-serif; transition: all .15s; margin-bottom: -1px; }
+.tab-btn.active { color: #1a1a1a; border-bottom-color: #1a8c6e; font-weight: 600; }
+.summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+.summary-left { flex: 1; min-width: 0; }
+.summary-dim-name { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+.summary-text { font-size: 12px; color: #666; line-height: 1.5; }
+.summary-right { text-align: right; flex-shrink: 0; }
+.summary-score-big { font-size: 20px; font-weight: 700; color: #1a8c6e; }
+.complete-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #f0faf6; color: #1a8c6e; border: 1px solid #b8e0d2; }
+.incomplete-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #fff3f3; color: #d32f2f; border: 1px solid #f7c5c5; }
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
+.alert-success { background: #f0faf6; color: #1a8c6e; border: 1px solid #b8e0d2; }
+.submitted-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; text-align: center; padding: 40px 24px; }
+.submitted-icon { width: 64px; height: 64px; border-radius: 50%; background: #1a8c6e; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; margin: 0 auto 20px; }
+.submitted-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.submitted-sub { font-size: 14px; color: #666; line-height: 1.6; max-width: 440px; margin-bottom: 28px; }
+.loading { text-align: center; padding: 40px; color: #888; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="logo">
+    <div class="logo-badge">iG</div>
+    <span class="logo-name">intelli<span>Grow</span></span>
+  </div>
+  <span class="nav-meta" id="nav-meta">Loading…</span>
+  <div class="nav-user">
+    <div class="avatar" id="nav-avatar">?</div>
+    <span class="nav-user-name" id="nav-name">Loading…</span>
+  </div>
+</nav>
+
+<div id="loading-wrap" class="loading">Loading assessment…</div>
+
+<div class="page-wrap" id="page-wrap" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Your progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <div class="progress-text" id="progress-text"><b>0</b> of 0 completed</div>
+    </div>
+    <div style="padding:0 8px 0;flex:1">
+      <div class="sidebar-label" style="padding:0 8px;margin-bottom:10px">Competencies</div>
+      <div id="dim-nav-list"></div>
+    </div>
+    <div class="sidebar-submit">
+      <button class="submit-btn not-ready" id="sidebar-submit-btn" onclick="trySubmit()">— remaining</button>
+    </div>
+  </aside>
+
+  <main class="main-content" id="main-content">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-form-btn" onclick="switchTab('form')">Rate dimensions</button>
+      <button class="tab-btn" id="tab-summary-btn" onclick="switchTab('summary')">Summary view</button>
+    </div>
+    <div id="panel-form">
+      <div class="step-track" id="step-track"></div>
+      <div class="dim-header-card" id="dim-header-card"></div>
+      <div class="field-card">
+        <div class="field-header">
+          <div class="field-num">01</div>
+          <div class="field-meta">
+            <div class="field-label">Expectations met <span class="req">*</span></div>
+            <div class="field-hint">Describe what you achieved this cycle on this competency. Use specific examples or outcomes.</div>
+          </div>
+        </div>
+        <textarea id="field-met" rows="5" placeholder="e.g. I developed the SmQC dashboard…" oninput="onFieldInput('met', this.value)"></textarea>
+        <div class="char-count" id="char-met">Aim for 80+ characters &nbsp;<span id="count-met" style="color:#aaa">0</span></div>
+      </div>
+      <div class="field-card">
+        <div class="field-header">
+          <div class="field-num">02</div>
+          <div class="field-meta">
+            <div class="field-label">Area for improvement <span class="req">*</span></div>
+            <div class="field-hint">Be specific — what do you want to develop in the next 6 months?</div>
+          </div>
+        </div>
+        <textarea id="field-improve" rows="4" placeholder="e.g. I want to independently connect analysis to product decisions…" oninput="onFieldInput('improve', this.value)"></textarea>
+        <div class="char-count" id="char-improve">Aim for 60+ characters &nbsp;<span id="count-improve" style="color:#aaa">0</span></div>
+      </div>
+      <div class="field-card">
+        <div class="field-header">
+          <div class="field-num">03</div>
+          <div class="field-meta">
+            <div class="field-label">Self-score <span class="req">*</span></div>
+            <div class="field-hint">Rate your own performance. Your manager scores independently.</div>
+          </div>
+        </div>
+        <div class="score-grid" id="score-grid"></div>
+        <div class="score-hint-box" id="score-hint-box"></div>
+      </div>
+      <div class="nav-row">
+        <button class="btn" id="prev-btn" onclick="navigate(-1)" disabled>← Previous</button>
+        <span class="page-counter" id="page-counter">1 / —</span>
+        <button class="btn btn-primary" id="next-btn" onclick="saveAndNext()">Save & next →</button>
+      </div>
+    </div>
+
+    <div id="panel-summary" style="display:none">
+      <div style="font-size:13px;color:#666;margin-bottom:16px">Review your responses before submitting.</div>
+      <div id="summary-list"></div>
+      <div class="nav-row" style="margin-top:20px">
+        <button class="btn" onclick="switchTab('form')">← Edit responses</button>
+        <button class="btn btn-primary" id="summary-submit-btn" onclick="trySubmit()" disabled>Submit self-assessment →</button>
+      </div>
+      <div id="submit-msg" style="display:none" class="alert alert-success">✓ &nbsp;Self-assessment submitted successfully!</div>
+    </div>
+
+    <div id="panel-submitted" style="display:none">
+      <div class="submitted-wrap">
+        <div class="submitted-icon">✓</div>
+        <div class="submitted-title">Self-assessment submitted</div>
+        <div class="submitted-sub">Your responses have been saved. Your manager will see your scores side by side with theirs during the review.</div>
+        <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">Back to Dashboard →</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="tips-panel">
+    <div class="tips-label">Writing tips</div>
+    <div class="tip-item"><div class="tip-dot"></div><div class="tip-text">Use specific project names and outcomes.</div></div>
+    <div class="tip-item"><div class="tip-dot"></div><div class="tip-text">Quantify where you can — time saved, dashboards built.</div></div>
+    <div class="tip-item"><div class="tip-dot"></div><div class="tip-text">Score yourself as you truly see your work.</div></div>
+    <div class="score-preview-box">
+      <div class="sidebar-label" style="margin-bottom:10px">Scores so far</div>
+      <div id="score-preview-rows"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="/env.js"></script>
+<script src="supabase.js"></script>
+<script>
+requireAuth('login.html');
+const user = getUser();
+document.getElementById('nav-avatar').textContent = user.name[0].toUpperCase();
+document.getElementById('nav-name').textContent = user.name;
+
+// Read meeting context from URL
+const urlParams = new URLSearchParams(window.location.search);
+const meetingId = urlParams.get('meeting') || null;
+
+const SCORE_LABELS = ['', 'Needs\nimprovement', 'Developing', 'Meeting\nexpectations', 'Exceeding', 'Outstanding'];
+const SCORE_HINTS = [
+  '', 'Score 1 — Needs improvement.', 'Score 2 — Developing.',
+  'Score 3 — Meeting expectations.', 'Score 4 — Exceeding.', 'Score 5 — Outstanding.'
+];
+
+let VEDS = [], CYCLES = [], activeCycle = null;
+let current = 0;
+let responses = [];
+let existingAppraisals = [];
+
+async function init() {
+  const [vedsRes, cyclesRes, appraisalsRes] = await Promise.all([
+    db.from('competencies').select('*'),
+    db.from('cycles').select('*').order('start_date'),
+    db.from('appraisals').select('*').eq('employee_id', user.id)
+  ]);
+  VEDS = vedsRes.data || [];
+  CYCLES = cyclesRes.data || [];
+  activeCycle = CYCLES.find(c => c.is_active) || CYCLES[CYCLES.length - 1];
+  existingAppraisals = appraisalsRes.data || [];
+  responses = VEDS.map(v => {
+    const existing = existingAppraisals.find(a => a.competency_id === v.id && a.cycle_id === activeCycle?.id);
+    return { met: existing?.expectations_met || '', improve: existing?.area_for_improvement || '', score: existing?.self_score || null };
+  });
+
+  document.getElementById('nav-meta').textContent = (activeCycle?.name || '') + ' · Self-assessment';
+  document.getElementById('loading-wrap').style.display = 'none';
+  document.getElementById('page-wrap').style.display = 'flex';
+  loadDim();
+  renderScorePreview();
+}
+
+function completedCount() { return responses.filter(r => r.met.length >= 10 && r.improve.length >= 10 && r.score !== null).length; }
+function isCurrentComplete() { const r = responses[current]; return r.met.length >= 10 && r.improve.length >= 10 && r.score !== null; }
+function isAllComplete() { return responses.every(r => r.met.length >= 10 && r.improve.length >= 10 && r.score !== null); }
+
+function renderSidebarNav() {
+  const list = document.getElementById('dim-nav-list');
+  list.innerHTML = '';
+  VEDS.forEach((v, i) => {
+    const r = responses[i];
+    const done = r.met.length >= 10 && r.improve.length >= 10 && r.score !== null;
+    const active = i === current;
+    const btn = document.createElement('button');
+    btn.className = 'dim-nav-btn' + (active ? ' active' : '') + (done ? ' done' : '');
+    const typeClass = v.type === 'Functional' ? 'type-f' : 'type-nf';
+    btn.innerHTML = `<div class="dim-code">${done ? '✓' : v.code}</div>
+      <div class="dim-nav-info">
+        <div class="dim-nav-name">${v.name}</div>
+        <div class="dim-nav-meta">
+          <span class="type-badge ${typeClass}">${v.type === 'Functional' ? 'F' : 'NF'}</span>
+          <span style="font-size:10px;color:#aaa">Wt: ${v.weight}%</span>
+          ${r.score ? `<span class="dim-score-preview">${r.score}/5</span>` : ''}
+        </div>
+      </div>`;
+    btn.onclick = () => jumpTo(i);
+    list.appendChild(btn);
+  });
+}
+
+function renderProgress() {
+  const done = completedCount();
+  const pct = VEDS.length ? (done / VEDS.length) * 100 : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').innerHTML = `<b>${done}</b> of ${VEDS.length} completed`;
+  const remaining = VEDS.length - done;
+  const btn = document.getElementById('sidebar-submit-btn');
+  if (done === VEDS.length) { btn.className = 'submit-btn ready'; btn.textContent = 'Submit self-assessment →'; }
+  else { btn.className = 'submit-btn not-ready'; btn.textContent = `${remaining} dimension${remaining !== 1 ? 's' : ''} remaining`; }
+}
+
+function renderStepTrack() {
+  const track = document.getElementById('step-track'); track.innerHTML = '';
+  VEDS.forEach((_, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'step-seg' + (i < current ? ' done' : i === current ? ' active' : '');
+    track.appendChild(seg);
+  });
+}
+
+function renderDimHeader() {
+  const v = VEDS[current];
+  const typePill = v.type === 'Functional' ? 'functional' : 'nonfunctional';
+  document.getElementById('dim-header-card').innerHTML = `<div class="dim-title-row">
+    <span class="dim-title">${v.name}</span>
+    <span class="type-pill ${typePill}">${v.type}</span>
+    <span class="weight-chip">Weight: ${v.weight}%</span>
+  </div>
+  <div class="ved-expectation-box"><b>VED expectation — </b>${v.description || 'Perform well in this area.'}</div>`;
+}
+
+function renderScoreGrid() {
+  const r = responses[current]; const grid = document.getElementById('score-grid'); grid.innerHTML = '';
+  [1,2,3,4,5].forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'score-btn' + (r.score === n ? ' selected' : '');
+    btn.innerHTML = `<div class="score-num">${n}</div><div class="score-label">${SCORE_LABELS[n].replace('\n','<br>')}</div>`;
+    btn.onclick = () => { responses[current].score = n; renderScoreGrid(); renderScoreHint(); updateNavBtns(); renderSidebarNav(); renderProgress(); renderScorePreview(); };
+    grid.appendChild(btn);
+  });
+}
+
+function renderScoreHint() {
+  const r = responses[current]; const box = document.getElementById('score-hint-box');
+  if (r.score) { box.className = 'score-hint-box visible'; box.innerHTML = `<b style="color:#1a8c6e">Score ${r.score} selected.</b> ${SCORE_HINTS[r.score]}`; }
+  else { box.className = 'score-hint-box'; }
+}
+
+function renderFields() {
+  const r = responses[current];
+  document.getElementById('field-met').value = r.met;
+  document.getElementById('field-improve').value = r.improve;
+  updateCharCount('met', r.met); updateCharCount('improve', r.improve);
+}
+
+function updateCharCount(field, value) {
+  const len = value.trim().length, minMap = { met: 80, improve: 60 }, min = minMap[field];
+  const countEl = document.getElementById('count-' + field), wrapEl = document.getElementById('char-' + field);
+  countEl.textContent = len;
+  if (len === 0) { wrapEl.className = 'char-count'; }
+  else if (len < min) { wrapEl.className = 'char-count char-warn'; wrapEl.innerHTML = `${min-len} more characters recommended &nbsp;<span id="count-${field}">${len}</span>`; }
+  else { wrapEl.className = 'char-count char-ok'; wrapEl.innerHTML = `Good detail ✓ &nbsp;<span id="count-${field}">${len}</span>`; }
+}
+
+function onFieldInput(field, value) { responses[current][field] = value; updateCharCount(field, value); updateNavBtns(); renderSidebarNav(); renderProgress(); }
+
+function updateNavBtns() {
+  const prevBtn = document.getElementById('prev-btn'), nextBtn = document.getElementById('next-btn');
+  const counter = document.getElementById('page-counter');
+  prevBtn.disabled = current === 0;
+  const isLast = current === VEDS.length - 1;
+  nextBtn.textContent = isLast ? (isAllComplete() ? 'Submit self-assessment →' : 'Complete all →') : 'Save & next →';
+  nextBtn.disabled = isLast && !isAllComplete();
+  counter.textContent = `${current + 1} / ${VEDS.length}`;
+}
+
+function renderScorePreview() {
+  const rows = document.getElementById('score-preview-rows'); rows.innerHTML = '';
+  VEDS.forEach((v, i) => {
+    const r = responses[i];
+    rows.innerHTML += `<div class="score-preview-row"><span class="score-preview-code">${v.code}</span>${r.score ? `<span class="score-preview-val">${r.score}/5</span>` : `<span class="score-preview-empty">—</span>`}</div>`;
+  });
+}
+
+function renderSummary() {
+  const list = document.getElementById('summary-list'); list.innerHTML = '';
+  VEDS.forEach((v, i) => {
+    const r = responses[i];
+    const done = r.met.length >= 10 && r.improve.length >= 10 && r.score !== null;
+    const badge = done ? '<span class="complete-badge">Complete</span>' : '<span class="incomplete-badge">Incomplete</span>';
+    list.innerHTML += `<div class="summary-card">
+      <div class="summary-left">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="summary-dim-name">${v.name}</span>${badge}</div>
+        ${done ? `<div class="summary-text">${r.met.substring(0,140)}${r.met.length>140?'…':''}</div>` : `<div style="font-size:12px;color:#d32f2f">Complete this dimension before submitting.</div>`}
+      </div>
+      <div class="summary-right">${done ? `<div class="summary-score-big">${r.score}<span style="font-size:13px;color:#aaa;font-weight:400">/5</span></div>` : `<div style="font-size:18px;font-weight:700;color:#ccc">—</div>`}</div>
+    </div>`;
+  });
+  document.getElementById('summary-submit-btn').disabled = !isAllComplete();
+}
+
+function saveFields() {
+  responses[current].met = document.getElementById('field-met').value;
+  responses[current].improve = document.getElementById('field-improve').value;
+}
+
+function loadDim() { renderDimHeader(); renderFields(); renderScoreGrid(); renderScoreHint(); renderStepTrack(); renderSidebarNav(); renderProgress(); renderScorePreview(); updateNavBtns(); }
+
+function navigate(dir) { saveFields(); const next = current + dir; if (next < 0 || next >= VEDS.length) return; current = next; loadDim(); }
+function jumpTo(idx) { saveFields(); current = idx; switchTab('form'); loadDim(); }
+function saveAndNext() {
+  saveFields();
+  if (current < VEDS.length - 1) { current++; loadDim(); }
+  else { if (!isAllComplete()) alert('Please complete all dimensions before submitting.'); else trySubmit(); }
+}
+
+async function trySubmit() {
+  if (!isAllComplete()) return;
+  // Upsert all scores to Supabase
+  for (let i = 0; i < VEDS.length; i++) {
+    const v = VEDS[i], r = responses[i];
+    const existing = existingAppraisals.find(a => a.competency_id === v.id && a.cycle_id === activeCycle.id);
+    const payload = {
+      self_score: r.score,
+      expectations_met: r.met,
+      area_for_improvement: r.improve
+    };
+    if (existing) {
+      await db.from('appraisals').update(payload).eq('id', existing.id);
+    } else {
+      await db.from('appraisals').insert({ employee_id: user.id, cycle_id: activeCycle.id, competency_id: v.id, ...payload });
+    }
+  }
+  // Optionally, if the status was 'self_ratings_not_filled', revert it to 'upcoming' now that it is filled
+  if (meetingId) {
+    await db.from('meetings').update({ status: 'upcoming' }).eq('id', meetingId).eq('status', 'self_ratings_not_filled');
+  }
+  document.getElementById('panel-form').style.display = 'none';
+  document.getElementById('panel-summary').style.display = 'none';
+  document.getElementById('panel-submitted').style.display = 'block';
+  document.getElementById('tab-form-btn').style.display = 'none';
+  document.getElementById('tab-summary-btn').style.display = 'none';
+}
+
+function switchTab(tab) {
+  saveFields();
+  document.getElementById('tab-form-btn').classList.toggle('active', tab === 'form');
+  document.getElementById('tab-summary-btn').classList.toggle('active', tab === 'summary');
+  document.getElementById('panel-form').style.display = tab === 'form' ? 'block' : 'none';
+  document.getElementById('panel-summary').style.display = tab === 'summary' ? 'block' : 'none';
+  if (tab === 'summary') renderSummary();
+}
+
+init();
+</script>
+</body>
+</html>

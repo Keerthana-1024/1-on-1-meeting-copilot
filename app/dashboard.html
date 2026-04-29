@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>intelliGrow — My Growth Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; }
+
+/* ── Nav ── */
+.topnav { background:#fff; border-bottom:1px solid #e0e0e0; padding:0 28px; height:52px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+.logo { display:flex; align-items:center; gap:8px; }
+.logo-badge { width:28px; height:28px; background:#1a8c6e; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
+.logo-name { font-size:15px; font-weight:700; }
+.logo-name span { color:#1a8c6e; }
+.nav-tabs { display:flex; }
+.nav-tab { padding:0 16px; height:52px; display:flex; align-items:center; font-size:13px; color:#888; cursor:pointer; border:none; border-bottom:2px solid transparent; background:none; font-family:Arial,sans-serif; transition:all .15s; text-decoration:none; }
+.nav-tab:hover { color:#333; }
+.nav-tab.active { color:#1a8c6e; border-bottom-color:#1a8c6e; font-weight:600; }
+.nav-user { display:flex; align-items:center; gap:8px; }
+.avatar { width:30px; height:30px; border-radius:50%; background:#e8f5f0; border:2px solid #1a8c6e; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:#1a8c6e; }
+.signout-btn { font-size:11px; color:#aaa; background:none; border:none; cursor:pointer; }
+
+/* ── Page ── */
+.page { max-width:1100px; margin:0 auto; padding:28px 24px; }
+.page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+.page-title { font-size:20px; font-weight:700; margin-bottom:4px; }
+.page-sub { font-size:13px; color:#888; }
+.cycle-badge { background:#f0faf6; border:1px solid #b8e0d2; color:#1a8c6e; font-size:12px; font-weight:600; padding:5px 12px; border-radius:20px; }
+
+.metric-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+.metric-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:16px 18px; }
+.metric-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+.metric-value { font-size:26px; font-weight:700; line-height:1; margin-bottom:4px; }
+.metric-sub { font-size:12px; color:#888; }
+.metric-up { color:#1a8c6e; }
+
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.section-title { font-size:14px; font-weight:700; }
+.section-hint { font-size:12px; color:#888; }
+
+/* Overview strip */
+.overview-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:24px; }
+.overview-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:14px 14px 10px; cursor:pointer; transition:all .15s; position:relative; }
+.overview-card:hover { border-color:#b8e0d2; box-shadow:0 2px 8px rgba(26,140,110,.08); }
+.overview-card.selected { border-color:#1a8c6e; box-shadow:0 2px 12px rgba(26,140,110,.15); }
+.oc-code { font-size:10px; font-weight:700; color:#1a8c6e; margin-bottom:3px; }
+.oc-name { font-size:11px; font-weight:500; color:#444; margin-bottom:10px; line-height:1.3; }
+.oc-chart { height:44px; margin-bottom:8px; }
+.oc-scores { display:flex; justify-content:space-between; align-items:center; }
+.oc-self { font-size:13px; font-weight:700; color:#1a8c6e; }
+.oc-mgr  { font-size:13px; font-weight:700; color:#7b5ea7; }
+.trend-pill { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; }
+.tp-up   { background:#f0faf6; color:#1a8c6e; border:1px solid #b8e0d2; }
+.tp-flat { background:#f5f5f5; color:#888;   border:1px solid #e0e0e0; }
+.tp-down { background:#fff3f3; color:#d32f2f; border:1px solid #f7c5c5; }
+.sel-ind { position:absolute; bottom:-1px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:8px solid #f5f5f5; display:none; }
+.overview-card.selected .sel-ind { display:block; }
+
+/* Detail section */
+.cycle-selector { display:flex; gap:4px; }
+.cycle-btn { padding:4px 10px; font-size:11px; font-weight:600; border-radius:12px; border:1px solid transparent; background:transparent; color:#666; cursor:pointer; font-family:Arial,sans-serif; }
+.cycle-btn:hover { background:#f5f5f5; }
+.cycle-btn.active { background:#e0f5ec; color:#1a8c6e; border-color:#b8e0d2; }
+.detail-section { display:grid; grid-template-columns:1fr 310px; gap:16px; margin-bottom:24px; }
+.detail-chart-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px 24px; }
+.detail-chart-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:8px; }
+.detail-title { font-size:15px; font-weight:700; }
+.detail-sub { font-size:12px; color:#888; margin-bottom:16px; }
+.legend { display:flex; gap:16px; margin-bottom:16px; }
+.legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:#555; }
+.legend-dot { width:10px; height:10px; border-radius:50%; }
+.chart-wrap { position:relative; height:220px; }
+canvas { display:block; }
+.trend-ann { margin-top:12px; padding:10px 14px; border-radius:7px; font-size:12px; line-height:1.6; border:1px solid; }
+.ta-up   { background:#f0faf6; border-color:#b8e0d2; color:#1a6b52; }
+.ta-flat { background:#f5f5f5; border-color:#e0e0e0; color:#666; }
+.ta-down { background:#fff3f3; border-color:#f7c5c5; color:#a32020; }
+
+.detail-right { display:flex; flex-direction:column; gap:12px; }
+.score-breakdown-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:16px 18px; }
+.bd-title { font-size:13px; font-weight:700; margin-bottom:12px; }
+.bd-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.bd-label { font-size:12px; color:#555; }
+.bd-bar-wrap { flex:1; margin:0 10px; height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; }
+.bd-bar-fill { height:100%; border-radius:3px; transition:width .5s; }
+.bd-score { font-size:13px; font-weight:700; min-width:28px; text-align:right; }
+.target-row { border-top:1px solid #f0f0f0; padding-top:10px; display:flex; justify-content:space-between; align-items:center; }
+.target-label { font-size:12px; color:#888; }
+.target-value { font-size:16px; font-weight:700; color:#1a8c6e; }
+.mode-pill { font-size:10px; font-weight:700; padding:3px 8px; border-radius:10px; }
+.ai-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:16px 18px; flex:1; }
+.ai-row { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #f5f5f5; }
+.ai-row:last-child { border-bottom:none; }
+.ai-check { width:18px; height:18px; border-radius:50%; border:2px solid #e0e0e0; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:10px; color:transparent; transition:all .15s; margin-top:1px; }
+.ai-check.done { background:#1a8c6e; border-color:#1a8c6e; color:#fff; }
+.ai-text { font-size:12px; color:#444; line-height:1.5; }
+.ai-text.done-text { color:#aaa; text-decoration:line-through; }
+.ai-type { font-size:10px; font-weight:600; padding:1px 6px; border-radius:3px; margin-top:3px; display:inline-block; }
+.af  { background:#e8f0fe; color:#1a56c4; }
+.anf { background:#f0f0f0; color:#666; }
+
+/* Dims table */
+.all-dims-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px 24px; margin-bottom:24px; }
+.dims-table { width:100%; border-collapse:collapse; }
+.dims-table th { text-align:left; font-size:11px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:.06em; padding:6px 10px 10px; border-bottom:1px solid #e0e0e0; }
+.dims-table td { padding:10px; font-size:13px; border-bottom:1px solid #f5f5f5; vertical-align:middle; }
+.dims-table tr:last-child td { border-bottom:none; }
+.dims-table tr { cursor:pointer; transition:background .1s; }
+.dims-table tr:hover td { background:#f9fffe; }
+.dims-table tr.selected td { background:#f0faf6; }
+.bar-mini { width:72px; height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:6px; }
+.bar-mini-fill { height:100%; border-radius:3px; }
+
+/* Scheduled Meets */
+.meets-card { background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px 24px; margin-bottom:24px; }
+.meets-controls { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.meets-search { flex:1; min-width:180px; padding:8px 12px; border:1px solid #d0d0d0; border-radius:7px; font-size:13px; outline:none; font-family:Arial,sans-serif; }
+.meets-search:focus { border-color:#1a8c6e; }
+.meets-filter { padding:8px 12px; border:1px solid #d0d0d0; border-radius:7px; font-size:13px; outline:none; font-family:Arial,sans-serif; background:#fff; cursor:pointer; }
+.meet-row { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid #f0f0f0; gap:14px; }
+.meet-row:last-child { border-bottom:none; }
+.meet-row.clickable { cursor:pointer; }
+.meet-row.clickable:hover .meet-title { color:#1a8c6e; }
+.meet-row.unclickable { opacity:.6; cursor:default; }
+.meet-left { flex:1; min-width:0; }
+.meet-title { font-size:13px; font-weight:700; margin-bottom:3px; transition:color .15s; }
+.meet-meta { font-size:11px; color:#888; }
+.meet-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.meet-date { font-size:11px; color:#aaa; }
+.stag { font-size:10px; font-weight:700; padding:3px 9px; border-radius:10px; white-space:nowrap; }
+.stag-upcoming            { background:#e8f0fe; color:#1a56c4; border:1px solid #c5d5f5; }
+.stag-active              { background:#fff8e1; color:#f57c00; border:1px solid #ffe082; }
+.stag-form_not_provided   { background:#fff3f3; color:#d32f2f; border:1px solid #f7c5c5; }
+.stag-self_ratings_not_filled { background:#fff3e0; color:#e65100; border:1px solid #ffcc80; }
+.stag-approval_pending    { background:#f5f5f5; color:#777; border:1px solid #ddd; }
+.stag-completed           { background:#f0faf6; color:#1a8c6e; border:1px solid #b8e0d2; }
+.stag-cancelled           { background:#f5f5f5; color:#bbb; border:1px solid #e0e0e0; }
+.meets-empty { padding:32px; text-align:center; color:#bbb; font-size:13px; }
+
+/* Modal */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; align-items:center; justify-content:center; padding:16px; }
+.overlay.open { display:flex; }
+.modal { background:#fff; border-radius:14px; padding:28px 30px; max-width:520px; width:100%; position:relative; max-height:90vh; overflow-y:auto; box-shadow:0 8px 48px rgba(0,0,0,.2); }
+.modal-x { position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:#bbb; }
+.modal-x:hover { color:#555; }
+.modal-title { font-size:17px; font-weight:700; margin-bottom:4px; padding-right:24px; }
+.modal-sub { font-size:12px; color:#888; margin-bottom:18px; }
+.irow { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f5f5f5; font-size:13px; }
+.irow:last-child { border-bottom:none; }
+.ilabel { color:#888; font-size:12px; }
+.mbtn { font-size:13px; font-weight:600; padding:9px 18px; border-radius:8px; border:none; cursor:pointer; font-family:Arial,sans-serif; transition:all .15s; margin-top:14px; display:inline-flex; align-items:center; gap:6px; }
+.mbtn-primary { background:#1a8c6e; color:#fff; }
+.mbtn-primary:hover { background:#157a5e; }
+.mbtn-ghost { background:#f5f5f5; color:#444; margin-left:8px; }
+.mbtn-green { background:#1a8c6e; color:#fff; }
+.mbtn-green:hover { background:#157a5e; }
+.mbtn-red { background:#d32f2f; color:#fff; margin-left:8px; }
+.mbtn-red:hover { background:#b71c1c; }
+.info-banner { border-radius:8px; padding:11px 14px; font-size:12px; margin:12px 0; line-height:1.5; }
+.ib-red  { background:#fff3f3; border:1px solid #f7c5c5; color:#d32f2f; }
+.ib-orng { background:#fff8e1; border:1px solid #ffe082; color:#e65100; }
+.ib-grey { background:#f5f5f5; border:1px solid #e0e0e0; color:#666; }
+.ib-active { background:#fff8e1; border:1px solid #ffe082; border-radius:9px; padding:20px; text-align:center; font-size:15px; font-weight:600; color:#f57c00; margin:12px 0; }
+.dl-row { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+.dl-btn { font-size:12px; font-weight:600; padding:8px 14px; border-radius:8px; border:1px solid #b8e0d2; background:#f0faf6; color:#1a8c6e; cursor:pointer; font-family:Arial,sans-serif; }
+.dl-btn:hover { background:#e0f5ec; }
+.sc-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f5f5f5; }
+.sc-row:last-child { border-bottom:none; }
+.sc-label { font-size:12px; color:#555; flex:0 0 138px; }
+.sc-bars { flex:1; display:flex; flex-direction:column; gap:3px; }
+.sc-bar-wrap { height:5px; background:#f0f0f0; border-radius:3px; overflow:hidden; }
+.sc-bar-fill { height:100%; border-radius:3px; }
+.sc-val { font-size:12px; font-weight:700; min-width:56px; text-align:right; }
+.ni-note { background:#fffbe6; border:1px solid #ffe58f; border-radius:7px; padding:10px 14px; font-size:12px; color:#856404; margin-top:12px; }
+.loading { text-align:center; padding:48px; color:#aaa; font-size:13px; }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div style="display:flex;align-items:center;gap:24px">
+    <div class="logo">
+      <div class="logo-badge">iG</div>
+      <span class="logo-name">intelli<span>Grow</span></span>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="nav-dash" onclick="switchNav('dash')">My Growth</button>
+      <button class="nav-tab" id="nav-meets" onclick="switchNav('meets')">Scheduled Meets</button>
+      <a class="nav-tab" href="learning.html">Learning</a>
+      <a class="nav-tab" href="role_select.html">Switch View</a>
+    </div>
+  </div>
+  <div class="nav-user">
+    <div class="avatar" id="nav-av">?</div>
+    <span style="font-size:13px;color:#444" id="nav-nm">…</span>
+    <button class="signout-btn" onclick="clearSession();location.href='login.html'">Sign out</button>
+  </div>
+</nav>
+
+<div class="page" id="page"><div class="loading">Loading your dashboard…</div></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/env.js"></script>
+<script src="supabase.js"></script>
+<script>
+requireAuth('login.html');
+const user = getUser();
+document.getElementById('nav-av').textContent = user.name[0].toUpperCase();
+document.getElementById('nav-nm').textContent = user.name;
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+
+// ── Global state ───────────────────────────────────────────────
+let CYCLES=[], VEDS=[], APPRAISALS=[], ACTION_ITEMS=[], MEETINGS=[];
+let USERS_MAP={};   // id → user object
+let selectedDim=0, meetQ='', meetFilter='';
+
+// ── Helpers ────────────────────────────────────────────────────
+const fmt = d => new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const fmtDT = d => new Date(d).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function trnd(arr){ const f=arr.filter(x=>x!==null); return f.length<2?'flat':f[f.length-1]>f[f.length-2]?'up':f[f.length-1]<f[f.length-2]?'down':'flat'; }
+function tgt(s,m){ if(s===5&&m===5)return 5; if(s===m)return Math.min(s+1,5); if(s>m)return Math.min(m+1,5); return m; }
+function modeLabel(s,m){
+  if(s===5&&m===5)return{l:'Peak',bg:'#f0faf6',c:'#1a8c6e'};
+  if(s===m)return{l:'Growth mode',bg:'#f0faf6',c:'#1a8c6e'};
+  if(s>m)return{l:'Perception gap',bg:'#fff3f3',c:'#d32f2f'};
+  return{l:'Underestimation',bg:'#fff8e1',c:'#f57c00'};
+}
+
+function switchNav(tab) {
+  document.getElementById('nav-dash').classList.toggle('active', tab === 'dash');
+  document.getElementById('nav-meets').classList.toggle('active', tab === 'meets');
+  document.getElementById('tab-dash').style.display = tab === 'dash' ? 'block' : 'none';
+  document.getElementById('tab-meets').style.display = tab === 'meets' ? 'block' : 'none';
+}
+
+// ── Load ───────────────────────────────────────────────────────
+async function loadAll(){
+  const [cR,vR,aR,aiR,mR,uR] = await Promise.all([
+    db.from('cycles').select('*').order('start_date',{ascending:true}),
+    db.from('competencies').select('*'),
+    db.from('appraisals').select('*').eq('employee_id',user.id),
+    db.from('action_items').select('*').eq('employee_id',user.id),
+    db.from('meetings').select('*').eq('reportee_id',user.id).order('scheduled_at',{ascending:false}),
+    db.from('users').select('id,name,email,role')
+  ]);
+  CYCLES       = cR.data||[];
+  VEDS         = vR.data||[];
+  APPRAISALS   = aR.data||[];
+  ACTION_ITEMS = aiR.data||[];
+  MEETINGS     = mR.data||[];
+  (uR.data||[]).forEach(u=>{ USERS_MAP[u.id]=u; });
+  render();
+}
+
+function render(){
+  const ac     = CYCLES.find(c=>c.is_active)||CYCLES[CYCLES.length-1];
+  const acIdx  = CYCLES.findIndex(c=>c.is_active);
+  const prvIdx = acIdx>0?acIdx-1:-1;
+  let mom=0;
+  if(acIdx>=0&&prvIdx>=0){
+    const cS=VEDS.reduce((s,v)=>s+(getScore(v.id,CYCLES[acIdx]?.id,'self')||0),0)/VEDS.length;
+    const pS=VEDS.reduce((s,v)=>s+(getScore(v.id,CYCLES[prvIdx]?.id,'self')||0),0)/VEDS.length;
+    mom=+(cS-pS).toFixed(1);
+  }
+  const imp     = VEDS.filter(v=>trnd(CYCLES.map(c=>getScore(v.id,c.id,'self')))==='up').length;
+  const aiDone  = ACTION_ITEMS.filter(a=>a.status==='done').length;
+  const nextMt  = MEETINGS.find(m=>m.status==='upcoming');
+  const dAway   = nextMt?Math.max(0,Math.ceil((new Date(nextMt.scheduled_at)-new Date())/86400000)):'—';
+
+document.getElementById('page').innerHTML=`
+  <div id="tab-dash">
+    <div class="page-header">
+    <div><div class="page-title">My Growth Dashboard</div><div class="page-sub">Performance trend · VED competencies · All cycles</div></div>
+    <span class="cycle-badge">Current cycle: ${ac?.name||'—'}</span>
+  </div>
+  <div class="metric-row">
+    <div class="metric-card"><div class="metric-label">Overall momentum</div><div class="metric-value metric-up">${mom>=0?'+':''}${mom}</div><div class="metric-sub">vs previous cycle</div></div>
+    <div class="metric-card"><div class="metric-label">Dimensions improving</div><div class="metric-value">${imp}<span style="font-size:16px;color:#888;font-weight:400"> / ${VEDS.length}</span></div><div class="metric-sub">trend active</div></div>
+    <div class="metric-card"><div class="metric-label">Action items done</div><div class="metric-value">${aiDone}<span style="font-size:16px;color:#888;font-weight:400"> / ${ACTION_ITEMS.length}</span></div><div class="metric-sub">${ACTION_ITEMS.length?Math.round(aiDone/ACTION_ITEMS.length*100):0}% this cycle</div></div>
+    <div class="metric-card"><div class="metric-label">Next review meeting</div><div class="metric-value">${dAway}</div><div class="metric-sub">days away</div></div>
+  </div>
+  <div class="section-header">
+    <span class="section-title">VED competencies — click to drill down</span>
+    <span class="section-hint"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#1a8c6e;margin-right:4px"></span>Self &nbsp;<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7b5ea7;margin-right:4px"></span>Manager</span>
+  </div>
+  <div class="overview-strip" id="ov-strip"></div>
+  <div class="detail-section">
+    <div class="detail-chart-card">
+      <div class="detail-chart-header">
+        <div><div class="detail-title" id="d-title">—</div><div class="detail-sub" id="d-sub">—</div></div>
+        <div class="cycle-selector" id="cycle-selector"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#1a8c6e"></div>Self-score</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7b5ea7"></div>Manager score</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e0e0e0;border:1px solid #ccc"></div>Previous cycle</div>
+      </div>
+      <div class="chart-wrap"><canvas id="d-canvas"></canvas></div>
+      <div class="trend-ann ta-flat" id="d-ann"></div>
+    </div>
+    <div class="detail-right">
+      <div class="score-breakdown-card" id="d-breakdown"></div>
+      <div class="ai-card" id="d-ai"></div>
+    </div>
+  </div>
+  <div class="all-dims-card">
+    <div class="section-header" style="margin-bottom:14px"><span class="section-title">All dimensions — cycle comparison</span></div>
+    <table class="dims-table">
+      <thead><tr><th>Dimension</th><th>Type</th><th>Self</th><th>Manager</th><th>Target</th><th>Trend</th><th>Mode</th></tr></thead>
+      <tbody id="dims-tbody"></tbody>
+    </table>
+  </div>
+  </div>
+  
+  <div id="tab-meets" style="display:none">
+  <div class="meets-card" style="margin-top:24px">
+    <div class="section-header" style="margin-bottom:14px">
+      <span class="section-title">Scheduled Meets</span>
+      <span style="font-size:12px;color:#888" id="meets-cnt"></span>
+    </div>
+    <div class="meets-controls">
+      <input class="meets-search" id="meets-q" type="text" placeholder="Search meetings…" oninput="meetQ=this.value;renderMeets()">
+      <select class="meets-filter" id="meets-f" onchange="meetFilter=this.value;renderMeets()">
+        <option value="">All statuses</option>
+        <option value="upcoming">Upcoming</option>
+        <option value="active">Active</option>
+        <option value="form_not_provided">Form not provided</option>
+        <option value="self_ratings_not_filled">Self ratings not filled</option>
+        <option value="approval_pending">Approval pending</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div id="meets-list"></div>
+  </div>
+  </div>`;
+
+  buildOverview(); selectDim(0); renderDimsTable(); renderMeets();
+}
+
+// ── Score helpers ──────────────────────────────────────────────
+function getScore(vedId,cycleId,type){
+  const a=APPRAISALS.find(x=>x.competency_id===vedId&&x.cycle_id===cycleId);
+  if(!a) return null;
+  return type==='self'?a.self_score:a.manager_score;
+}
+function getScores(vedId){ return CYCLES.map(c=>getScore(vedId,c.id,'self')); }
+function getMgrScores(vedId){ return CYCLES.map(c=>getScore(vedId,c.id,'mgr')); }
+function selfArr(v){ return CYCLES.map(c=>getScore(v.id,c.id,'self')); }
+function mgrArr(v){ return CYCLES.map(c=>getScore(v.id,c.id,'mgr')); }
+
+// ── Overview strip ─────────────────────────────────────────────
+function buildOverview(){
+  const strip=document.getElementById('ov-strip'); if(!strip)return;
+  strip.innerHTML='';
+  VEDS.forEach((v,i)=>{
+    const sArr=selfArr(v), mArr=mgrArr(v);
+    const sLast=sArr.filter(x=>x!==null).slice(-1)[0]||0;
+    const mLast=mArr.filter(x=>x!==null).slice(-1)[0]||0;
+    const t=trnd(sArr);
+    const tC=t==='up'?'tp-up':t==='down'?'tp-down':'tp-flat';
+    const tT=t==='up'?'↑ Improving':t==='down'?'↓ Declining':'→ Stable';
+    const card=document.createElement('div');
+    card.className='overview-card'+(i===selectedDim?' selected':'');
+    card.innerHTML=`<div class="oc-code">${v.code}</div><div class="oc-name">${v.name}</div>
+      <div class="oc-chart"><canvas style="width:100%;height:44px" id="mc-${i}"></canvas></div>
+      <div class="oc-scores">
+        <span class="oc-self">${sLast}<span style="font-size:10px;color:#aaa;font-weight:400">/5 S</span></span>
+        <span class="trend-pill ${tC}">${tT}</span>
+        <span class="oc-mgr">${mLast}<span style="font-size:10px;color:#aaa;font-weight:400">/5 M</span></span>
+      </div><div class="sel-ind"></div>`;
+    card.onclick=()=>selectDim(i);
+    strip.appendChild(card);
+    requestAnimationFrame(()=>drawMini(document.getElementById('mc-'+i),sArr,mArr));
+  });
+}
+
+function drawMini(canvas,sArr,mArr){
+  if(!canvas)return;
+  const W=canvas.width=canvas.offsetWidth||130, H=canvas.height=44;
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const sF=sArr.filter(x=>x!==null), mF=mArr.filter(x=>x!==null);
+  const n=Math.max(sF.length,mF.length,2);
+  const pad=8, xS=(W-pad*2)/(n-1), yS=(H-10)/4;
+  const xf=i=>pad+i*xS, yf=v=>H-5-(v-1)*yS;
+  if(sF.length>1){ctx.beginPath();ctx.strokeStyle='#1a8c6e';ctx.lineWidth=2;sF.forEach((s,i)=>i===0?ctx.moveTo(xf(i),yf(s)):ctx.lineTo(xf(i),yf(s)));ctx.stroke();}
+  if(mF.length>1){ctx.beginPath();ctx.strokeStyle='#7b5ea7';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);mF.forEach((s,i)=>i===0?ctx.moveTo(xf(i),yf(s)):ctx.lineTo(xf(i),yf(s)));ctx.stroke();ctx.setLineDash([]);}
+}
+
+// ── Select & detail ───────────────────────────────────────────
+function selectDim(i){
+  selectedDim=i; buildOverview();
+  const v=VEDS[i]; if(!v) return;
+  document.getElementById('d-title').textContent=v.name;
+  document.getElementById('d-sub').textContent=`${v.type} · Weight: ${v.weight}%`;
+  
+  // Render Cycle Selector
+  const acIdx = CYCLES.findIndex(c=>c.is_active);
+  document.getElementById('cycle-selector').innerHTML = CYCLES.map((c, idx) => 
+    `<button class="cycle-btn ${idx===acIdx?'active':''}" style="cursor:default">${c.name.slice(0,7)}</button>`
+  ).join('');
+
+  const sArr=selfArr(v), mArr=mgrArr(v);
+  drawDetailChart(sArr,mArr);
+  renderTrendAnn(sArr,mArr);
+  renderBreakdown(sArr,mArr);
+  renderAI(v);
+  renderDimsTable();
+}
+
+function drawDetailChart(sArr,mArr){
+  const canvas=document.getElementById('d-canvas'); if(!canvas)return;
+  const W=canvas.width=canvas.parentElement.offsetWidth, H=canvas.height=220;
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const pL=36,pR=20,pT=16,pB=36, cW=W-pL-pR, cH=H-pT-pB, n=CYCLES.length;
+  if(n<2) return;
+  const xS=cW/(n-1), xf=i=>pL+i*xS, yf=v=>pT+cH-(v-1)/4*cH;
+  ctx.font='11px Arial'; ctx.textAlign='right';
+  for(let v=1;v<=5;v++){const y=yf(v);ctx.beginPath();ctx.strokeStyle='#f0f0f0';ctx.lineWidth=1;ctx.moveTo(pL,y);ctx.lineTo(W-pR,y);ctx.stroke();ctx.fillStyle='#bbb';ctx.fillText(v,pL-6,y+4);}
+  ctx.textAlign='center';ctx.fillStyle='#aaa';ctx.font='10px Arial';
+  CYCLES.forEach((c,i)=>ctx.fillText(c.name.slice(0,7),xf(i),H-6));
+  const wmI=n-2;
+  if(wmI>=0){ctx.beginPath();ctx.setLineDash([4,3]);ctx.strokeStyle='#d0d0d0';ctx.lineWidth=1;ctx.moveTo(xf(wmI),pT);ctx.lineTo(xf(wmI),pT+cH);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ccc';ctx.font='10px Arial';ctx.textAlign='center';ctx.fillText('prev',xf(wmI),pT-4);}
+  function drawLine(arr,color,dash=false,lw=2.5){
+    const pts=arr.map((v,i)=>v!==null?{x:xf(i),y:yf(v)}:null).filter(Boolean);
+    if(pts.length<2)return;
+    ctx.beginPath();if(dash)ctx.setLineDash([5,4]);ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineJoin='round';
+    pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.stroke();ctx.setLineDash([]);
+  }
+  function drawDots(arr,color,big=false){
+    arr.forEach((s,i)=>{if(s===null)return;const isL=i===n-1;ctx.beginPath();ctx.arc(xf(i),yf(s),isL?(big?5:4):3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();if(isL){ctx.font='11px Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(s,xf(i),yf(s)-10);}});
+  }
+  drawLine(sArr,'#1a8c6e',false,2.5); drawLine(mArr,'#7b5ea7',true,2);
+  drawDots(sArr,'#1a8c6e',true); drawDots(mArr,'#7b5ea7',false);
+}
+
+function renderTrendAnn(sArr,mArr){
+  const sF=sArr.filter(x=>x!==null), mF=mArr.filter(x=>x!==null);
+  const box=document.getElementById('d-ann'); if(!box||sF.length<2)return;
+  const sC=sF[sF.length-1], sP=sF[sF.length-2], mC=mF[mF.length-1]||sC;
+  const t=tgt(sC,mC), gapNote=sC>mC?` Manager scored <b>${mC}/5</b>. Target: <b>${t}/5</b>.`:'';
+  if(sC>sP){box.className='trend-ann ta-up';box.innerHTML=`<b>↑ Trend active</b> — ${sP}→${sC}.${gapNote} Target next: <b>${t}/5</b>.`;}
+  else if(sC<sP){box.className='trend-ann ta-down';box.innerHTML=`<b>↓ Declined</b> — ${sP}→${sC}. Review incomplete action items.`;}
+  else{box.className='trend-ann ta-flat';box.innerHTML=`<b>→ Stable</b> — score unchanged (${sC}/5).${gapNote} Target: <b>${t}/5</b>.`;}
+}
+
+function renderBreakdown(sArr,mArr){
+  const box=document.getElementById('d-breakdown'); if(!box)return;
+  const sF=sArr.filter(x=>x!==null), mF=mArr.filter(x=>x!==null);
+  const sC=sF[sF.length-1]||0, mC=mF[mF.length-1]||0, t=tgt(sC,mC), mode=modeLabel(sC,mC);
+  box.innerHTML=`<div class="bd-title">Current cycle scores</div>
+  <div class="bd-row"><span class="bd-label">Self-score</span><div class="bd-bar-wrap"><div class="bd-bar-fill" style="width:${sC/5*100}%;background:#1a8c6e"></div></div><span class="bd-score" style="color:#1a8c6e">${sC}/5</span></div>
+  <div class="bd-row"><span class="bd-label">Manager score</span><div class="bd-bar-wrap"><div class="bd-bar-fill" style="width:${mC/5*100}%;background:#7b5ea7"></div></div><span class="bd-score" style="color:#7b5ea7">${mC}/5</span></div>
+  <div class="target-row"><div><div class="target-label">AI target</div><div class="target-value">${t}/5 next cycle</div></div><span class="mode-pill" style="background:${mode.bg};color:${mode.c};border:1px solid ${mode.c}40">${mode.l}</span></div>`;
+}
+
+function renderAI(v){
+  const box=document.getElementById('d-ai'); if(!box)return;
+  const items=ACTION_ITEMS.filter(a=>a.competency_id===v.id);
+  const doneN=items.filter(a=>a.status==='done').length;
+  const rows=items.map(a=>`<div class="ai-row">
+    <div class="ai-check ${a.status==='done'?'done':''}" onclick="toggleAI('${a.id}','${a.status}')">${a.status==='done'?'✓':''}</div>
+    <div><div class="ai-text ${a.status==='done'?'done-text':''}">${a.description}</div>
+    <span class="ai-type ${a.type==='F'?'af':'anf'}">${a.type==='F'?'Functional':'Non-functional'}</span></div>
+  </div>`).join('');
+  const acIdx=CYCLES.findIndex(c=>c.is_active);
+  const appr=acIdx>=0?APPRAISALS.find(a=>a.competency_id===v.id&&a.cycle_id===CYCLES[acIdx]?.id):null;
+  const fb=appr?.manager_feedback||'';
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="bd-title" style="margin:0">Action items</div><span style="font-size:11px;color:#888">${doneN}/${items.length} done</span>
+  </div>${rows||'<div style="font-size:12px;color:#aaa;padding:6px 0">No action items for this dimension yet.</div>'}
+  ${fb?`<div style="margin-top:10px;padding:8px 12px;background:#f9f9f9;border-radius:6px;border:1px solid #eee"><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Manager's feedback</div><div style="font-size:11px;color:#666;line-height:1.55;font-style:italic">"${fb}"</div></div>`:''}`;
+}
+
+async function toggleAI(id,status){
+  const ns=status==='done'?'pending':'done';
+  await db.from('action_items').update({status:ns}).eq('id',id);
+  const a=ACTION_ITEMS.find(x=>x.id===id); if(a)a.status=ns;
+  renderAI(VEDS[selectedDim]);
+}
+
+function renderDimsTable(){
+  const tbody=document.getElementById('dims-tbody'); if(!tbody)return;
+  tbody.innerHTML='';
+  VEDS.forEach((v,i)=>{
+    const sArr=selfArr(v), mArr=mgrArr(v);
+    const sF=sArr.filter(x=>x!==null), mF=mArr.filter(x=>x!==null);
+    const sC=sF[sF.length-1]||0, mC=mF[mF.length-1]||0;
+    const t=tgt(sC,mC), mode=modeLabel(sC,mC), tr2=trnd(sArr);
+    const tT=tr2==='up'?'↑ Improving':tr2==='down'?'↓ Declining':'→ Stable';
+    const tC=tr2==='up'?'#1a8c6e':tr2==='down'?'#d32f2f':'#888';
+    const tr=document.createElement('tr');
+    tr.className=i===selectedDim?'selected':'';
+    tr.innerHTML=`<td><b>${v.name}</b><br><span style="font-size:10px;color:#aaa">${v.code} · Wt:${v.weight}%</span></td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;font-weight:600;${v.type==='Functional'?'background:#e8f0fe;color:#1a56c4':'background:#f0f0f0;color:#666'}">${v.type==='Functional'?'F':'NF'}</span></td>
+      <td><div style="display:flex;align-items:center"><div class="bar-mini"><div class="bar-mini-fill" style="width:${sC/5*100}%;background:#1a8c6e"></div></div><b style="color:#1a8c6e">${sC}/5</b></div></td>
+      <td><div style="display:flex;align-items:center"><div class="bar-mini"><div class="bar-mini-fill" style="width:${mC/5*100}%;background:#7b5ea7"></div></div><b style="color:#7b5ea7">${mC}/5</b></div></td>
+      <td><b style="color:#1a8c6e">${t}/5</b></td>
+      <td><span style="font-size:12px;font-weight:600;color:${tC}">${tT}</span></td>
+      <td><span class="mode-pill" style="background:${mode.bg};color:${mode.c};border:1px solid ${mode.c}40">${mode.l}</span></td>`;
+    tr.onclick=()=>selectDim(i);
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Scheduled Meets ────────────────────────────────────────────
+function renderMeets(){
+  const list=document.getElementById('meets-list'); if(!list)return;
+  let f=[...MEETINGS];
+  if(meetFilter) f=f.filter(m=>m.status===meetFilter);
+  if(meetQ){const q=meetQ.toLowerCase();f=f.filter(m=>m.title.toLowerCase().includes(q)||(USERS_MAP[m.manager_id]?.name||'').toLowerCase().includes(q));}
+  const cnt=document.getElementById('meets-cnt');
+  if(cnt) cnt.textContent=`${f.length} meeting${f.length!==1?'s':''}`;
+  if(!f.length){list.innerHTML='<div class="meets-empty">No meetings found.</div>';return;}
+  list.innerHTML=f.map(m=>{
+    const mgrName=USERS_MAP[m.manager_id]?.name||'—';
+    const unclick=m.status==='cancelled';
+    const tag=m.status.replace(/_/g,' ');
+    return `<div class="meet-row ${unclick?'unclickable':'clickable'}" ${!unclick?`onclick="openMeet('${m.id}')"`:''}>
+      <div class="meet-left">
+        <div class="meet-title">${m.title}</div>
+        <div class="meet-meta">Manager: ${mgrName} · ${fmtDT(m.scheduled_at)} · ${m.duration_minutes} min</div>
+      </div>
+      <div class="meet-right">
+        <span class="meet-date">${fmt(m.scheduled_at)}</span>
+        <span class="stag stag-${m.status}">${tag}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openMeet(id){
+  const m=MEETINGS.find(x=>x.id===id); if(!m)return;
+  const mgrName=USERS_MAP[m.manager_id]?.name||'—';
+  let body=`<div class="modal-title">${m.title}</div>
+    <div class="modal-sub">Manager: ${mgrName}</div>
+    <div class="irow"><span class="ilabel">Date & Time</span><span>${fmtDT(m.scheduled_at)}</span></div>
+    <div class="irow"><span class="ilabel">Duration</span><span>${m.duration_minutes} min</span></div>
+    <div class="irow"><span class="ilabel">Status</span><span class="stag stag-${m.status}">${m.status.replace(/_/g,' ')}</span></div>
+    <div class="irow"><span class="ilabel">Manager</span><span>${mgrName}</span></div>`;
+
+  if(m.status==='active'){
+    body+=`<div class="ib-active" id="active-meet-banner">🟡 This meeting is currently active</div>
+           <button id="mic-btn" class="mbtn mbtn-green" onclick="openSttBox()" style="margin-top:10px">🎙️ Start Recording</button>
+           <div id="stt-container" style="display:none;margin-top:14px">
+             <textarea id="stt-text" style="width:100%;height:100px;border-radius:8px;padding:10px;border:1px solid #d0d0d0;font-family:Arial;font-size:13px;resize:vertical" placeholder="Speech will appear here..." readonly></textarea>
+             <div style="display:flex;gap:10px;margin-top:10px">
+               <button id="speak-btn" class="mbtn mbtn-green" onclick="startStt()">▶ Speak</button>
+               <button id="stop-btn" class="mbtn mbtn-red" onclick="stopStt()" style="display:none">⏹ Stop Recording</button>
+             </div>
+           </div>`;
+  } else if(m.status==='upcoming'){
+    body+=`<button class="mbtn mbtn-primary" onclick="location.href='self_assessment.html?meeting=${m.id}'">Fill Self-Assessment →</button>`;
+  } else if(m.status==='form_not_provided'){
+    body+=`<div class="info-banner ib-red">⚠ Your manager has not yet provided the evaluation form for this meeting (due within 3 days of the meeting). You cannot complete the self-assessment until they do.</div>
+      <button class="mbtn mbtn-ghost" disabled>Self-Assessment Locked</button>`;
+  } else if(m.status==='self_ratings_not_filled'){
+    body+=`<div class="info-banner ib-orng">⚠ You have not filled self-ratings (due 2 days before meeting). Please complete now.</div>
+      <button class="mbtn mbtn-primary" onclick="location.href='self_assessment.html?meeting=${m.id}'">Fill Self-Assessment →</button>`;
+  } else if(m.status==='approval_pending'){
+    body+=`<div class="info-banner ib-grey">⏳ Your manager has completed the review. Waiting for them to publish feedback & action items.</div>`;
+  } else if(m.status==='completed'){
+    body+=`<div class="dl-row">
+      <button class="dl-btn" onclick="downloadDoc('${m.id}', 'transcript')">📄 Transcript (JSON)</button>
+      <button class="dl-btn" onclick="downloadDoc('${m.id}', 'summary')">📋 Summary (TXT)</button>
+      <button class="dl-btn" onclick="downloadDoc('${m.id}', 'actions')">✅ Action Items (JSON)</button>
+    </div>
+    <div style="margin-top:14px"><div class="bd-title">Scores — Self vs Manager</div>`;
+    const acIdx=CYCLES.findIndex(c=>c.is_active);
+    VEDS.forEach(v=>{
+      const s=acIdx>=0?getScore(v.id,CYCLES[acIdx]?.id,'self')||0:0;
+      const mg=acIdx>=0?getScore(v.id,CYCLES[acIdx]?.id,'mgr')||0:0;
+      const appr=acIdx>=0?APPRAISALS.find(a=>a.competency_id===v.id&&a.cycle_id===CYCLES[acIdx]?.id):null;
+      body+=`<div class="sc-row">
+        <span class="sc-label">${v.name}</span>
+        <div class="sc-bars">
+          <div class="sc-bar-wrap"><div class="sc-bar-fill" style="width:${s/5*100}%;background:#1a8c6e"></div></div>
+          <div class="sc-bar-wrap" style="margin-top:3px"><div class="sc-bar-fill" style="width:${mg/5*100}%;background:#7b5ea7"></div></div>
+        </div>
+        <span class="sc-val"><span style="color:#1a8c6e">${s}</span>/<span style="color:#7b5ea7">${mg}</span></span>
+      </div>`;
+      if(appr?.manager_feedback){body+=`<div style="font-size:11px;color:#666;font-style:italic;padding:4px 0 8px 0;line-height:1.5;border-bottom:1px solid #f5f5f5">${appr.manager_feedback}</div>`;}
+    });
+    body+=`</div>`;
+  }
+  document.getElementById('modal-body').innerHTML=body;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function notImpl(l){ alert(l+' download not yet implemented. Coming soon!'); }
+
+// ── Deepgram STT Logic (Reportee view) ─────────────────────────────────────
+let dgSocket = null;
+let mediaRecorder = null;
+
+function openSttBox() {
+  document.getElementById('stt-container').style.display = 'block';
+  document.getElementById('mic-btn').style.display = 'none';
+}
+
+async function startStt() {
+  if (!window.ENV.DEEPGRAM_API_KEY) {
+    alert('Deepgram API Key not found in environment variables.');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    dgSocket = new WebSocket(
+      'wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&interim_results=true&encoding=linear16&sample_rate=16000&channels=1',
+      ['token', window.ENV.DEEPGRAM_API_KEY]
+    );
+    dgSocket.onopen = () => {
+      document.getElementById('speak-btn').style.display = 'none';
+      document.getElementById('stop-btn').style.display = 'inline-flex';
+      const banner = document.getElementById('active-meet-banner');
+      if (banner) {
+        banner.style.background = '#e0f5ec';
+        banner.style.borderColor = '#b8e0d2';
+        banner.style.color = '#1a8c6e';
+        banner.innerHTML = '🔴 Listening and Transcribing...';
+      }
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      const source = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+      processor.onaudioprocess = (e) => {
+        if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+          const channelData = e.inputBuffer.getChannelData(0);
+          const pcm16 = new Int16Array(channelData.length);
+          for (let i = 0; i < channelData.length; i++) {
+            pcm16[i] = Math.min(1, channelData[i]) * 0x7FFF;
+          }
+          dgSocket.send(pcm16.buffer);
+        }
+      };
+      mediaRecorder = { stream, audioContext, processor, source };
+    };
+    dgSocket.onmessage = (message) => {
+      const received = JSON.parse(message.data);
+      const transcript = received.channel?.alternatives[0]?.transcript;
+      if (transcript && received.is_final) {
+        const ta = document.getElementById('stt-text');
+        ta.value += (ta.value ? '\n' : '') + 'Speaker: ' + transcript;
+        ta.scrollTop = ta.scrollHeight;
+      }
+    };
+    dgSocket.onerror = (e) => {
+      console.error('Deepgram WebSocket Error', e);
+      alert('Error connecting to Deepgram.');
+      stopStt();
+    };
+  } catch (err) {
+    console.error('Error accessing microphone:', err);
+    alert('Microphone access denied or not available.');
+  }
+}
+
+async function stopStt() {
+  if (dgSocket) { dgSocket.close(); dgSocket = null; }
+  if (mediaRecorder) {
+    mediaRecorder.processor.disconnect();
+    mediaRecorder.source.disconnect();
+    mediaRecorder.audioContext.close();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    mediaRecorder = null;
+  }
+  const banner = document.getElementById('active-meet-banner');
+  if (banner) {
+    banner.style.background = '#fff8e1';
+    banner.style.borderColor = '#ffe082';
+    banner.style.color = '#f57c00';
+    banner.innerHTML = '🟡 Recording stopped. Meeting still active.';
+  }
+  const stopBtn = document.getElementById('stop-btn');
+  const speakBtn = document.getElementById('speak-btn');
+  if (stopBtn) stopBtn.style.display = 'none';
+  if (speakBtn) speakBtn.style.display = 'inline-flex';
+}
+
+async function downloadDoc(meetingId, type) {
+  const m = MEETINGS.find(x => x.id === meetingId);
+  if (!m) return;
+  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url').eq('id', meetingId).single();
+  
+  let urlField = '';
+  let filename = '';
+  
+  if (type === 'transcript') {
+    urlField = mtg?.transcript_url;
+    filename = `transcript_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  } else if (type === 'summary') {
+    urlField = mtg?.summary_url;
+    filename = `summary_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+  } else if (type === 'actions') {
+    urlField = mtg?.action_items_url;
+    filename = `action_items_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  }
+
+  if (!urlField) {
+    alert('Document is not available for this meeting.');
+    return;
+  }
+
+  if (urlField.startsWith('data:')) {
+    // Live generated data URI
+    const a = document.createElement('a');
+    a.href = urlField;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    // Filename in DB -> fetch from Azure Blob Storage
+    const downloadUrl = `${BLOB_BASE_URL}/${urlField}${BLOB_SAS_TOKEN}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    a.target = '_blank'; // Fallback to open in new tab if download is blocked
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+loadAll();
+window.addEventListener('resize',()=>{ if(VEDS[selectedDim]){const v=VEDS[selectedDim];drawDetailChart(selfArr(v),mgrArr(v));} buildOverview(); });
+</script>
+</body>
+</html>

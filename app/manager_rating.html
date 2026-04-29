@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>intelliGrow — Manager Rating</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+.topnav { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-badge { width: 28px; height: 28px; background: #1a8c6e; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+.logo-name { font-size: 15px; font-weight: 700; }
+.logo-name span { color: #1a8c6e; }
+.main { max-width: 940px; margin: 72px auto 0; background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #e0e0e0; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.subtitle { font-size: 12px; color: #666; margin-top: 2px; }
+.tab-bar { border-bottom: 1px solid #e0e0e0; margin-bottom: 16px; display: flex; }
+.tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-size: 13px; cursor: pointer; color: #666; font-family: Arial,sans-serif; }
+.tab.active { border-bottom-color: #1a8c6e; color: #1a1a1a; font-weight: 500; }
+.ved-box { background: #f0f4ff; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #444; }
+.ved-box span { font-weight: 600; color: #1a1a1a; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.col-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.self-block { background: #f7f7f7; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+.block-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+.block-text { font-size: 12px; color: #333; line-height: 1.55; }
+.score-row { display: flex; gap: 6px; margin-top: 6px; }
+.score-btn { width: 36px; height: 36px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #d0d0d0; background: #fff; color: #555; transition: all .15s; font-family: Arial,sans-serif; }
+.score-btn.selected { background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; }
+.score-btn.self-sel { background: #f0faf6; color: #1a8c6e; border-color: #1a8c6e; cursor: default; }
+.score-btn:hover:not(.selected):not(.self-sel) { background: #f0f0f0; }
+textarea { width: 100%; box-sizing: border-box; font-size: 12px; padding: 8px 10px; border-radius: 6px; border: 1px solid #d0d0d0; background: #fff; color: #333; resize: vertical; font-family: Arial, sans-serif; line-height: 1.5; }
+textarea:focus { outline: none; border-color: #1a8c6e; }
+.field-label { font-size: 11px; color: #555; margin-bottom: 4px; }
+.field-label span { color: #d32f2f; }
+.gap-hint { font-size: 11px; margin-top: 4px; color: #555; }
+.warn { color: #f57c00; }
+.danger { color: #d32f2f; }
+.success { color: #1a8c6e; }
+.nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+.btn { font-size: 13px; padding: 7px 16px; border-radius: 6px; cursor: pointer; border: 1px solid #d0d0d0; background: #fff; color: #333; font-family: Arial,sans-serif; }
+.btn-primary { background: #1a8c6e; color: #fff; border-color: #1a8c6e; }
+.btn-success { background: #1a8c6e; color: #fff; border-color: #1a8c6e; }
+.btn:disabled { opacity: .4; cursor: default; }
+.progress-dots { display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #d0d0d0; cursor: pointer; transition: background .15s; }
+.dot.active { background: #1a1a1a; }
+.dot.done { background: #1a8c6e; }
+.dim-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.dim-title { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.type-pill { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 500; }
+.functional { background: #e8f0fe; color: #1a56c4; }
+.nonfunctional { background: #f0f0f0; color: #555; }
+.weight-tag { font-size: 11px; color: #888; margin-left: auto; }
+.summary-row { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; display: flex; gap: 12px; align-items: flex-start; }
+.summary-scores { text-align: right; flex-shrink: 0; }
+.score-display { font-size: 15px; font-weight: 600; }
+.alert { padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-top: 10px; }
+.alert-warn { background: #fff8e1; color: #f57c00; }
+.alert-success { background: #f0faf6; color: #1a6b52; border: 1px solid #b8e0d2; }
+.loading { text-align: center; padding: 40px; color: #888; }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="logo">
+    <div class="logo-badge">iG</div>
+    <span class="logo-name">intelli<span>Grow</span></span>
+  </div>
+  <span style="font-size:12px;color:#888" id="nav-subtitle">Manager Review</span>
+  <button class="btn" onclick="window.location.href='manager_dashboard.html'" style="font-size:12px">← Back to Dashboard</button>
+</nav>
+
+<div id="loading" class="loading" style="margin-top:80px">Loading review form…</div>
+<div class="main" id="main-wrap" style="display:none">
+  <div class="header">
+    <div>
+      <div class="title">1st level review — manager view</div>
+      <div class="subtitle" id="review-subtitle">Loading…</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="progress-dots" id="dots"></div>
+      <span style="font-size:12px;color:#666" id="dim-counter">1 / —</span>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" id="tab-review" onclick="setTab('review')">Rate dimensions</button>
+    <button class="tab" id="tab-summary" onclick="setTab('summary')">Summary view</button>
+    <button class="tab" id="tab-action" onclick="setTab('action')" style="display:none">Action Items & Publish</button>
+  </div>
+
+  <div id="panel-review">
+    <div id="dim-card"></div>
+    <div class="nav-row">
+      <button class="btn" onclick="prevDim()" id="prev-btn">← Previous</button>
+      <button class="btn btn-primary" onclick="saveDim()">Save & continue →</button>
+    </div>
+  </div>
+
+  <div id="panel-summary" style="display:none">
+    <div id="summary-content"></div>
+    <div class="nav-row">
+      <button class="btn" onclick="setTab('review')">← Edit scores</button>
+      <button class="btn btn-primary" onclick="generateMockData()" id="btn-generate">Generate Action Items →</button>
+    </div>
+  </div>
+
+  <div id="panel-action" style="display:none">
+    <div style="font-size:14px; font-weight:600; margin-bottom:8px">AI Generated Summary</div>
+    <div class="ved-box" id="mock-summary" style="margin-bottom:20px; font-size:13px; line-height:1.6">Generating...</div>
+    
+    <div style="font-size:14px; font-weight:600; margin-bottom:12px">Action Items (Editable)</div>
+    <div id="action-items-list" style="margin-bottom:20px"></div>
+    <button class="btn" onclick="addMockActionItem()" style="margin-bottom:20px; font-size:12px">+ Add action item</button>
+
+    <div class="nav-row" style="border-top:1px solid #e0e0e0; padding-top:16px">
+      <button class="btn" onclick="setTab('summary')">← Back to Summary</button>
+      <button class="btn btn-success" onclick="submitReview()" id="submit-btn">Approve & Publish Docs →</button>
+    </div>
+    <div id="submit-msg" class="alert alert-success" style="display:none">
+      ✓ Review and Documents published successfully!
+    </div>
+  </div>
+</div>
+
+<script src="/env.js"></script>
+<script src="supabase.js"></script>
+<script>
+requireAuth('login.html');
+const user = getUser();
+const params = new URLSearchParams(window.location.search);
+const meetingId = params.get('meeting');
+const reporteeId = params.get('reportee');
+const startTab = params.get('tab');
+
+let VEDS = [], activeCycle = null, CYCLES = [], MEETINGS = [];
+let current = 0;
+let mgrData = [];
+let targetReportee = null;
+let existingAppraisals = [];
+
+async function init() {
+  const [vedsRes, cyclesRes] = await Promise.all([
+    db.from('competencies').select('*'),
+    db.from('cycles').select('*').order('start_date')
+  ]);
+  VEDS = vedsRes.data || [];
+  CYCLES = cyclesRes.data || [];
+  activeCycle = CYCLES.find(c => c.is_active) || CYCLES[CYCLES.length - 1];
+
+  // Determine which reportee we are reviewing
+  if (meetingId) {
+    const { data: mtg } = await db.from('meetings').select('*').eq('id', meetingId);
+    if (mtg && mtg.length > 0) { 
+      const { data: rep } = await db.from('users').select('*').eq('id', mtg[0].reportee_id);
+      if (rep && rep.length > 0) targetReportee = rep[0];
+    }
+  } else if (reporteeId) {
+    const { data: rep } = await db.from('users').select('*').eq('id', reporteeId);
+    if (rep && rep.length > 0) targetReportee = rep[0];
+  }
+
+  if (!targetReportee) {
+    document.getElementById('loading').textContent = 'No reportee specified. Go back and try again.';
+    return;
+  }
+
+  // Load existing appraisals for this reportee
+  const { data: existing } = await db.from('appraisals')
+    .select('*')
+    .eq('employee_id', targetReportee.id)
+    .eq('cycle_id', activeCycle.id);
+  existingAppraisals = existing || [];
+
+  mgrData = VEDS.map(v => {
+    const a = existingAppraisals.find(x => x.competency_id === v.id);
+    return { met: a?.mgr_expectations_met || '', improve: a?.mgr_area_for_improvement || '', score: a?.manager_score || null, self_score: a?.self_score || null };
+  });
+
+  document.getElementById('nav-subtitle').textContent = `Review · ${activeCycle?.name} · ${targetReportee.name}`;
+  document.getElementById('review-subtitle').textContent = `Review cycle: ${activeCycle?.name} · Employee: ${targetReportee.name}`;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main-wrap').style.display = 'block';
+  renderDim();
+
+  if (startTab === 'docs' && meetingId) {
+    document.getElementById('tab-action').style.display = 'inline-block';
+    await fetchExistingDocs();
+    setTab('action');
+  }
+}
+
+function buildDots() {
+  const d = document.getElementById('dots'); d.innerHTML = '';
+  VEDS.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'dot' + (i===current?' active':mgrData[i].score!==null?' done':'');
+    dot.onclick = () => { saveSilent(); current=i; renderDim(); };
+    d.appendChild(dot);
+  });
+  document.getElementById('dim-counter').textContent = `${current+1} / ${VEDS.length}`;
+}
+
+function gapHint(self, mgr) {
+  if (mgr===null) return '';
+  if (self===mgr) return `<div class="gap-hint success">Aligned at ${mgr}/5 — AI targets ${Math.min(mgr+1,5)} next cycle</div>`;
+  if (self>mgr) return `<div class="gap-hint danger">Gap: employee scored ${self}, you scored ${mgr} — AI surfaces your feedback first</div>`;
+  return `<div class="gap-hint warn">You see more (${mgr}) than the employee (${self}) — AI builds confidence</div>`;
+}
+
+function renderDim() {
+  const v = VEDS[current]; const m = mgrData[current];
+  const typeClass = v.type==='Functional'?'functional':'nonfunctional';
+  const selfScore = m.self_score || 0;
+  const selfBtns = [1,2,3,4,5].map(n => `<button class="score-btn self-sel" style="opacity:${n===selfScore?1:.3}" disabled>${n}</button>`).join('');
+  const mgrBtns = [1,2,3,4,5].map(n => `<button class="score-btn${n===m.score?' selected':''}" onclick="setScore(${n})">${n}</button>`).join('');
+  const improvWarn = m.improve.length>0&&m.improve.length<20 ? `<div class="gap-hint warn">Too brief — needs more detail.</div>` : '';
+
+  document.getElementById('dim-card').innerHTML = `
+    <div class="dim-header">
+      <span class="dim-title">${v.name}</span>
+      <span class="type-pill ${typeClass}">${v.type}</span>
+      <span class="weight-tag">Weight: ${v.weight}%</span>
+    </div>
+    <div class="ved-box"><span>VED expectation:</span> ${v.description || 'Perform well in this area.'}</div>
+    <div class="two-col">
+      <div>
+        <div class="col-label">Employee self-assessment</div>
+        <div class="self-block"><div class="block-label">Self score (read-only)</div><div class="score-row">${selfBtns}</div></div>
+      </div>
+      <div>
+        <div class="col-label">Your 1st level review</div>
+        <div style="margin-bottom:10px">
+          <div class="field-label">Expectations met <span>*</span></div>
+          <textarea id="mgr-met" rows="3" placeholder="What did the employee demonstrate on this dimension?" oninput="mgrData[current].met=this.value">${m.met}</textarea>
+        </div>
+        <div style="margin-bottom:10px">
+          <div class="field-label">Area for improvement <span>*</span></div>
+          <textarea id="mgr-improve" rows="3" placeholder="What specific behaviour needs to improve?" oninput="mgrData[current].improve=this.value">${m.improve}</textarea>
+          ${improvWarn}
+        </div>
+        <div>
+          <div class="field-label">Your score <span>*</span></div>
+          <div class="score-row">${mgrBtns}</div>
+          ${gapHint(selfScore, m.score)}
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('prev-btn').disabled = current===0;
+  buildDots();
+}
+
+function setScore(n) { mgrData[current].score=n; renderDim(); }
+
+function saveSilent() {
+  const me=document.getElementById('mgr-met'), im=document.getElementById('mgr-improve');
+  if(me) mgrData[current].met=me.value;
+  if(im) mgrData[current].improve=im.value;
+}
+
+function saveDim() {
+  saveSilent(); const m=mgrData[current];
+  if(!m.met.trim()||!m.improve.trim()||m.score===null){ alert('Please complete all three fields before continuing.'); return; }
+  if(current<VEDS.length-1){current++;renderDim();} else setTab('summary');
+}
+
+function prevDim(){saveSilent();if(current>0){current--;renderDim();}}
+
+function setTab(tab){
+  document.getElementById('tab-review').classList.toggle('active',tab==='review');
+  document.getElementById('tab-summary').classList.toggle('active',tab==='summary');
+  document.getElementById('tab-action').classList.toggle('active',tab==='action');
+  document.getElementById('panel-review').style.display=tab==='review'?'block':'none';
+  document.getElementById('panel-summary').style.display=tab==='summary'?'block':'none';
+  document.getElementById('panel-action').style.display=tab==='action'?'block':'none';
+  if(tab==='summary') renderSummary();
+}
+
+function renderSummary(){
+  const allDone=mgrData.every(m=>m.score!==null&&m.met.trim()&&m.improve.trim());
+  let html=`<div style="font-size:12px;color:#666;margin-bottom:12px">Review all scores before submitting.</div>`;
+  VEDS.forEach((v,i)=>{
+    const m=mgrData[i]; const done=m.score!==null&&m.met.trim()&&m.improve.trim();
+    const self=m.self_score||0; const mgr=m.score;
+    const gapColor=!done?'#888':self>mgr?'#d32f2f':self<mgr?'#f57c00':'#1a8c6e';
+    const gapLabel=!done?'Incomplete':self>mgr?`Gap −${self-mgr}`:self<mgr?`+${mgr-self} above self`:'Aligned';
+    html+=`<div class="summary-row">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:600">${v.name}</span>
+          <span style="font-size:11px;color:${gapColor};font-weight:500">${gapLabel}</span>
+        </div>
+        ${done?`<div style="font-size:11px;color:#555;line-height:1.5">${m.improve.substring(0,120)}${m.improve.length>120?'…':''}</div>`:`<div style="font-size:11px;color:#d32f2f">Incomplete</div>`}
+      </div>
+      <div class="summary-scores">
+        <div style="font-size:11px;color:#888">Self / Mgr</div>
+        <div class="score-display"><span style="color:#1a8c6e">${self}</span> / <span style="color:#7b5ea7">${m.score??'—'}</span></div>
+      </div>
+    </div>`;
+  });
+  if(!allDone) html+=`<div class="alert alert-warn">Complete all ${VEDS.length} dimensions before generating action items.</div>`;
+  document.getElementById('summary-content').innerHTML=html;
+  document.getElementById('btn-generate').disabled=!allDone;
+}
+
+let mockActionItems = [];
+let mockSummaryData = '';
+let mockTranscriptData = null;
+
+async function fetchExistingDocs() {
+  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url').eq('id', meetingId).single();
+  if (!mtg) return;
+
+  const missing = [];
+  const bBase = window.ENV.BLOB_BASE_URL;
+  const bToken = window.ENV.BLOB_SAS_TOKEN;
+
+  async function fetchBlob(filename, type) {
+    if (!filename) { missing.push(type); return null; }
+    try {
+      const res = await fetch(`${bBase}/${filename}${bToken}`);
+      if (!res.ok) { missing.push(type); return null; }
+      return type === 'summary' ? await res.text() : await res.json();
+    } catch (e) {
+      missing.push(type);
+      return null;
+    }
+  }
+
+  // Show the action tab and loading state
+  document.getElementById('tab-action').style.display = 'inline-block';
+  setTab('action');
+  document.getElementById('mock-summary').textContent = 'Fetching files from Azure...';
+  document.getElementById('action-items-list').innerHTML = '';
+
+  const [tData, sData, aData] = await Promise.all([
+    fetchBlob(mtg.transcript_url, 'transcript'),
+    fetchBlob(mtg.summary_url, 'summary'),
+    fetchBlob(mtg.action_items_url, 'action items')
+  ]);
+
+  if (missing.length > 0) {
+    document.getElementById('mock-summary').innerHTML = `<span style="color:#d32f2f;font-weight:bold;padding:12px;display:block;border:1px solid #f7c5c5;background:#fff3f3;border-radius:8px;">Error: File(s) not generated: ${missing.join(', ')}</span>`;
+    mockActionItems = [];
+    renderMockActionItems();
+  } else {
+    mockTranscriptData = tData;
+    mockSummaryData = sData;
+    mockActionItems = aData;
+    document.getElementById('mock-summary').textContent = mockSummaryData;
+    renderMockActionItems();
+  }
+}
+
+function renderMockActionItems() {
+  const list = document.getElementById('action-items-list');
+  list.innerHTML = mockActionItems.map((item, idx) => `
+    <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center" id="act-row-${item.id}">
+      <input type="text" class="inp" style="flex:1; padding:8px 10px; border:1px solid #d0d0d0; border-radius:6px; font-size:13px" value="${item.text.replace(/"/g, '&quot;')}" onchange="updateMockActionItem('${item.id}', this.value)">
+      <button class="btn" style="padding:7px 10px; color:#d32f2f" onclick="removeMockActionItem('${item.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function addMockActionItem() {
+  mockActionItems.push({ id: Date.now().toString(), text: '' });
+  renderMockActionItems();
+}
+
+function updateMockActionItem(id, text) {
+  const item = mockActionItems.find(i => i.id === id);
+  if (item) item.text = text;
+}
+
+function removeMockActionItem(id) {
+  mockActionItems = mockActionItems.filter(i => i.id !== id);
+  renderMockActionItems();
+}
+
+async function submitReview(){
+  saveSilent();
+  const allDone=mgrData.every(m=>m.score!==null&&m.met.trim()&&m.improve.trim());
+  if(!allDone){alert('Please complete all dimensions.'); return;}
+
+  for(let i=0;i<VEDS.length;i++){
+    const v=VEDS[i]; const m=mgrData[i];
+    const existing=existingAppraisals.find(a=>a.competency_id===v.id);
+    if(existing){
+      await db.from('appraisals').update({
+        manager_score: m.score,
+        manager_feedback: m.improve,
+        mgr_expectations_met: m.met,
+        mgr_area_for_improvement: m.improve
+      }).eq('id',existing.id);
+    } else {
+      await db.from('appraisals').insert({
+        employee_id: targetReportee.id,
+        manager_id: user.id,
+        cycle_id: activeCycle.id,
+        competency_id: v.id,
+        manager_score: m.score,
+        manager_feedback: m.improve,
+        mgr_expectations_met: m.met,
+        mgr_area_for_improvement: m.improve
+      });
+    }
+  }
+
+  // Save the final action items as a Data URI and set meeting status to completed
+  if (meetingId) {
+    const aUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(mockActionItems));
+    await db.from('meetings').update({ 
+      status: 'completed',
+      action_items_url: aUri
+    }).eq('id', meetingId);
+  }
+
+  document.getElementById('submit-btn').style.display='none';
+  document.getElementById('submit-msg').style.display='block';
+  setTimeout(()=>window.location.href='manager_dashboard.html', 1500);
+}
+
+init();
+</script>
+</body>
+</html>
