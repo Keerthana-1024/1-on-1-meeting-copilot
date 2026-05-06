@@ -1,54 +1,57 @@
-# 🌱 IntelliGrow
+# IntelliGrow
 
-**IntelliGrow** is an AI-powered, unified performance management and upskilling platform. Designed to seamlessly connect appraisals, 1-on-1 meetings, and personalized learning, IntelliGrow empowers managers and reportees to foster continuous professional development through intelligent data synthesis.
+**Performance Management & Upskilling Engine**
+*RAG Architecture | Real-Time Diarization | Multi-Agent LLM Processing | Hybrid RecSys*
 
----
-
-## ✨ Core Features
-
-### 📊 1. Smart Dashboards
-IntelliGrow offers distinct, role-based contextual views that update in real-time:
-- **Reportee View (`dashboard.html`)**: Tracks personal VED (Value, Execution, Domain) competencies, overall momentum, and upcoming deliverables.
-- **Manager View (`manager_dashboard.html`)**: Provides a team-wide overview, appraisal drafting interfaces, and meeting scheduling tools.
-- **Dynamic Workflows**: Status-based routing for meetings (e.g., `form_not_provided`, `active`, `completed`) to guide users seamlessly through the performance review lifecycle.
-
-### 🎙️ 2. AI Meeting Copilot (STT)
-Never lose track of what was discussed in a 1-on-1 again.
-- **Real-time Transcription**: Deepgram integration captures live meeting audio, automatically identifying speakers.
-- **Automated Summaries & Action Items**: Post-meeting, the AI backend synthesizes the raw transcript into concise summaries and extracts actionable items.
-- **Unified Storage**: All transcripts, summaries, and action items are natively stored in Supabase for reliable, secure access without external dependency risks.
-
-### 🎓 3. Personalized Learning Module
-Action items directly fuel professional growth.
-- **Contextual Course Recommendations**: Based on your appraisal scores and meeting action items, IntelliGrow recommends tailored courses.
-- **Provider Integrations**: Extensive library mockups including Coursera, edX, Udemy, YouTube, and TNQ Academy.
-- **Progress Tracking**: Track course completions and view customized interactive quizzes to validate learning retention directly within the platform.
-
-### 💬 4. "Chat with Data" (RAG Interface)
-A ChatGPT-style conversational assistant embedded directly into the dashboards.
-- **Role-Aware Context**: The chatbot adapts its context whether you are querying as a manager (e.g., *"How is my team performing?"*) or a reportee (e.g., *"How should I prepare for my next 1-on-1?"*).
-- **Intelligent Synthesis**: Seamlessly pulls from historical appraisals, meeting transcripts, and learning progress to provide highly actionable, personalized advice.
-- **Future-Ready Architecture**: UI built to support an upcoming integration with `pgvector` and `mem0` for advanced Retrieval-Augmented Generation (RAG).
+IntelliGrow is an enterprise-grade performance management platform that unifies 1-on-1 meeting intelligence, contextual upskilling, and conversational data querying into a single, automated ecosystem.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## System Architecture & Capabilities
 
-- **Frontend**: Vanilla HTML5, CSS3, and Javascript. Built with a focus on a "glassmorphic," premium, and highly responsive user experience. No bulky frameworks.
-- **Backend Framework**: Python **FastAPI**.
-- **Database**: **Supabase** (PostgreSQL). Stores users, meeting transcripts, action items, and learning metadata.
-- **AI/ML**: 
-  - **Deepgram API** for low-latency Speech-to-Text (STT).
-  - **Google Gemini** for text synthesis, summarization, and RAG capabilities.
+### 1. Real-Time Speech Processing Pipeline
+The meeting copilot relies on low-latency audio processing for live transcription.
+- **WebSocket Streaming**: Continuous audio streaming over WebSockets ensures minimal latency during active 1-on-1 meetings.
+- **Deepgram & Diarization**: High-accuracy Speech-to-Text (STT) utilizing native speaker diarization to separate and identify manager versus reportee dialogue.
+- **Session Tracking**: Links live audio streams with specific meeting IDs, ensuring secure and precise transcript routing directly into the database.
+
+### 2. Multi-Agent Data Synthesis
+Post-meeting data is processed using a sophisticated, chained LLM architecture.
+- **Processing Flow**: Raw meeting transcripts are passed through chained prompts to generate structured Meeting Summaries and automatically extract Action Items.
+- **Extensibility**: Currently utilizing Gemini for prompt logic and synthesis. The system is designed to allow drop-in replacements with fine-tuned models optimized for domain-specific corporate terminology in the future.
+- **Unified Data Stores**: Transcripts, Summaries, Action Items, and Manager Review Remarks (captured via post-meeting forms) are persistently stored in Supabase PostgreSQL.
+
+### 3. "Chat with Data" (RAG Backend)
+A highly contextual Retrieval-Augmented Generation (RAG) system built to synthesize heterogeneous performance data across the employee lifecycle.
+- **Data Ingestion Sources**: Embeds and indexes Meeting Transcripts, Summaries, Action Items, Manager Remarks, and Course Completion metrics.
+- **Vector & Memory Infrastructure**: Powered by **pgvector** and **mem0**. `mem0` abstracts entity extraction and long-term memory management, while `pgvector` handles the underlying high-dimensional semantic similarity search within Supabase.
+- **Dual Query Modes**: 
+  - *Reportee Context*: Optimized for task execution, 1-on-1 preparation, and specific feedback analysis.
+  - *Manager Context*: Optimized for team performance tracking, identifying cross-team upskilling gaps, and drafting review agendas.
+
+### 4. Recommendation System (RecSys) & Learning
+The learning module leverages automated skill-matching to drive professional development.
+- **Action Item to Course Mapping**: Utilizes a hybrid mapping logic (combining NLP entity extraction with vector DB semantic matching) to align extracted meeting action items directly with external course catalogs (Coursera, edX, Udemy).
+- **Dynamic Assessment**: Features an LLM-driven logic engine to dynamically generate contextual quizzes based on recently completed courses, validating knowledge retention.
 
 ---
 
-## 🚀 Setup & Local Development
+## Tech Stack
+
+- **Backend Framework**: Python FastAPI
+- **Database**: Supabase (PostgreSQL, pgvector)
+- **AI/ML Layer**: Deepgram (Websocket STT), Gemini (LLM & Embeddings), mem0 (Memory Management)
+- **Frontend**: Vanilla HTML5, CSS3, Javascript (Dashboard UI)
+
+---
+
+## Local Setup & Development
 
 ### Prerequisites
 - Python 3.9+
-- A Supabase account and project
+- Supabase account and project
 - Deepgram API Key
+- Gemini API Key
 
 ### Installation
 
@@ -80,11 +83,4 @@ A ChatGPT-style conversational assistant embedded directly into the dashboards.
    *Note for WSL users: Ensure your port forwarding is correctly configured if accessing from a Windows browser.*
 
 5. **Access the Application**
-   Navigate to `http://localhost:8000/role_select.html` to begin using the application.
-
----
-
-## 🗺️ Roadmap & Next Steps
-- [ ] **Full RAG Backend Integration**: Hook up the current "Chat with Data" UI to a real `pgvector` + `mem0` backend pipeline to dynamically embed and retrieve transcripts.
-- [ ] **Live Quiz Database Integration**: Migrate the hardcoded learning quizzes to dynamic, LLM-generated questions stored in Supabase.
-- [ ] **Production Deployment**: Finalize CI/CD pipelines for deployment to Render.
+   Navigate to `http://localhost:8000/role_select.html` to access the dashboards.
