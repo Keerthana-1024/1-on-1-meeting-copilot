@@ -689,20 +689,42 @@ async function stopStt() {
 async function downloadDoc(meetingId, type) {
   const m = MEETINGS.find(x => x.id === meetingId);
   if (!m) return;
-  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url').eq('id', meetingId).single();
+  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url, transcript_content, summary_content, action_items_content').eq('id', meetingId).single();
   
   let urlField = '';
+  let contentField = '';
   let filename = '';
+  let mimeType = 'text/plain';
   
   if (type === 'transcript') {
     urlField = mtg?.transcript_url;
+    contentField = mtg?.transcript_content;
     filename = `transcript_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    mimeType = 'application/json';
   } else if (type === 'summary') {
     urlField = mtg?.summary_url;
+    contentField = mtg?.summary_content;
     filename = `summary_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    mimeType = 'text/plain';
   } else if (type === 'actions') {
     urlField = mtg?.action_items_url;
+    contentField = mtg?.action_items_content;
     filename = `action_items_${m.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    mimeType = 'application/json';
+  }
+
+  if (contentField) {
+    // Database content available -> Create Blob and download
+    const blob = new Blob([contentField], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    return;
   }
 
   if (!urlField) {

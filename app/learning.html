@@ -56,9 +56,13 @@ body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; min-
 .progress-fill { height: 100%; border-radius: 3px; background: #1a8c6e; transition: width .4s; }
 
 /* Centre tab bar */
-.tab-bar { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 18px; gap: 0; }
+.tab-bar { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 12px; gap: 0; }
 .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 18px; font-size: 13px; color: #888; cursor: pointer; font-family: Arial, sans-serif; transition: all .15s; margin-bottom: -1px; }
 .tab-btn.active { color: #1a8c6e; border-bottom-color: #1a8c6e; font-weight: 600; }
+
+.pf-btn { background: #fff; border: 1px solid #d0d0d0; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: #555; cursor: pointer; white-space: nowrap; transition: all .15s; }
+.pf-btn.active { background: #1a8c6e; color: #fff; border-color: #1a8c6e; }
+.pf-btn:hover:not(.active) { background: #f5f5f5; }
 
 /* Filter tip banner */
 .filter-banner { background: #f0faf6; border: 1px solid #b8e0d2; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #1a6b52; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -96,6 +100,22 @@ body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; min-
 .dim-bar-fill { height: 100%; border-radius: 3px; }
 .dim-stat-val { font-size: 12px; font-weight: 700; min-width: 32px; text-align: right; }
 .loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
+
+/* Modal */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; align-items: center; justify-content: center; padding: 16px; }
+.overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 14px; padding: 28px 30px; max-width: 500px; width: 100%; position: relative; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 48px rgba(0,0,0,.2); }
+.modal-x { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #bbb; }
+.modal-x:hover { color: #555; }
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; padding-right: 24px; }
+.modal-sub { font-size: 12px; color: #888; margin-bottom: 18px; }
+
+.quiz-option { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+.quiz-option:last-child { border-bottom:none; }
+.ans-btn { display:block; width:100%; text-align:left; padding:12px 14px; margin-bottom:8px; border:1px solid #e0e0e0; border-radius:8px; background:#fff; font-size:13px; cursor:pointer; font-family:Arial, sans-serif; transition:all .15s; }
+.ans-btn:hover { background:#f5f5f5; border-color:#d0d0d0; }
+.ans-btn.correct { background:#f0faf6; border-color:#1a8c6e; color:#1a6b52; font-weight:600; }
+.ans-btn.wrong { background:#fff3f3; border-color:#d32f2f; color:#a32020; }
 </style>
 </head>
 <body>
@@ -123,7 +143,7 @@ body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; min-
   <div class="page-header">
     <div>
       <div class="page-title">Learning & Recommendations</div>
-      <div class="page-sub">Action items linked to TNQ Academy courses matched to your growth areas</div>
+      <div class="page-sub">Action items linked to courses matched to your growth areas</div>
     </div>
     <span class="cycle-badge" id="cycle-badge">Current cycle: —</span>
   </div>
@@ -144,16 +164,68 @@ body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; min-
         <button class="tab-btn active" id="tab-matched" onclick="setTab('matched')">Matched to you</button>
         <button class="tab-btn" id="tab-all" onclick="setTab('all')">All courses</button>
       </div>
+      
+      <!-- Provider Filters -->
+      <div class="provider-filters" style="display:flex;gap:8px;margin-bottom:8px;overflow-x:auto;padding-bottom:4px">
+        <button class="pf-btn active" onclick="setProvider(null, this)">All Providers</button>
+        <button class="pf-btn" onclick="setProvider('TNQ Academy', this)">TNQ Academy</button>
+        <button class="pf-btn" onclick="setProvider('Coursera', this)">Coursera</button>
+        <button class="pf-btn" onclick="setProvider('Udemy', this)">Udemy</button>
+        <button class="pf-btn" onclick="setProvider('edX', this)">edX</button>
+        <button class="pf-btn" onclick="setProvider('YouTube', this)">YouTube</button>
+      </div>
+
+      <!-- Status Filters -->
+      <div class="status-filters" style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px">
+        <button class="pf-btn active" onclick="setStatus(null, this)">All Statuses</button>
+        <button class="pf-btn" onclick="setStatus('completed', this)">Completed</button>
+        <button class="pf-btn" onclick="setStatus('pending', this)">Not Completed</button>
+      </div>
+
       <div id="filter-banner-wrap"></div>
       <div id="courses-panel"></div>
     </div>
 
-    <!-- Right: Stats -->
+    <!-- Right: Stats & Quiz -->
     <div>
+      <div class="section-label">Knowledge Check</div>
+      <div class="stats-card" style="text-align:center;padding:24px 16px;background:#f9f6ff;border-color:#e2d5f8">
+        <div style="font-size:32px;margin-bottom:10px">📝</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:6px;color:#4a3271">Ready to test your skills?</div>
+        <div style="font-size:12px;color:#6b5c8a;margin-bottom:16px;line-height:1.5">Take a quick quiz based on your action items and recommended courses to reinforce learning.</div>
+        <button style="width:100%;padding:10px;background:#7b5ea7;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer" onclick="openQuizSetup()">Take Quiz →</button>
+      </div>
+
       <div class="section-label">Progress summary</div>
       <div id="stats-panel"></div>
     </div>
 
+  </div>
+</div>
+
+<!-- Quiz Setup Modal -->
+<div class="overlay" id="quiz-setup-modal">
+  <div class="modal">
+    <button class="modal-x" onclick="closeQuizSetup()">✕</button>
+    <div class="modal-title">Take a Quiz</div>
+    <div class="modal-sub">Select the topics or action items you want to test yourself on.</div>
+    <div id="quiz-options-list" style="max-height:250px;overflow-y:auto;margin-bottom:16px;border:1px solid #e0e0e0;border-radius:8px;padding:10px">
+      <!-- populated by JS -->
+    </div>
+    <button style="width:100%;padding:12px;background:#1a8c6e;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer" onclick="startQuiz()">Start Quiz →</button>
+  </div>
+</div>
+
+<!-- Quiz Play Modal -->
+<div class="overlay" id="quiz-play-modal">
+  <div class="modal">
+    <button class="modal-x" onclick="closeQuizPlay()">✕</button>
+    <div class="modal-title" id="quiz-question-num">Question 1 of 5</div>
+    <div style="font-size:15px;font-weight:600;margin:16px 0" id="quiz-question-text">Question text...</div>
+    <div id="quiz-answers" style="display:flex;flex-direction:column;margin-bottom:20px">
+      <!-- populated by JS -->
+    </div>
+    <button id="quiz-next-btn" style="width:100%;padding:12px;background:#1a8c6e;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:none" onclick="nextQuizQuestion()">Next Question →</button>
   </div>
 </div>
 
@@ -170,8 +242,10 @@ let ACTION_ITEMS = [], VEDS = [], APPRAISALS = [], CYCLES = [];
 let selectedActionId = null;   // which action item is clicked
 let selectedVedCode  = null;   // its VED code → filter courses
 let currentTab = 'matched';
+let currentProvider = null;    // currently selected provider filter
+let currentStatus = null;      // currently selected status filter
 
-// ── TNQ Academy catalogue: vedKeyword matches competency code ──
+// ── Catalogue with new providers ──
 const CATALOGUE = [
   {
     id:'c1', title:'Business Strategy for Analysts',
@@ -179,11 +253,12 @@ const CATALOGUE = [
     icon:'📊', iconBg:'#e8f0fe', iconColor:'#1a56c4',
     desc:'Learn to connect data work to product goals, understand roadmaps, and ask the right questions in stakeholder reviews.',
     tags:['Strategy','Roadmaps','Stakeholders'],
-    url:'https://www.coursera.org/learn/business-strategy'
+    url:'https://tnqacademy.disprz.com/',
+    completed: true
   },
   {
     id:'c2', title:'Advanced SQL & Data Analysis',
-    provider:'TNQ Academy', duration:'6h', type:'F', vedKeyword:'DA',
+    provider:'Coursera', duration:'6h', type:'F', vedKeyword:'DA',
     icon:'🔬', iconBg:'#f0faf6', iconColor:'#1a8c6e',
     desc:'Deep-dive into analytical SQL, window functions, CTEs, and building insight pipelines that drive real decisions.',
     tags:['SQL','Analytics','Insights'],
@@ -191,19 +266,20 @@ const CATALOGUE = [
   },
   {
     id:'c3', title:'Data Visualization Mastery',
-    provider:'TNQ Academy', duration:'5h', type:'F', vedKeyword:'DV',
+    provider:'Udemy', duration:'5h', type:'F', vedKeyword:'DV',
     icon:'📈', iconBg:'#fff8e1', iconColor:'#f57c00',
     desc:'Master chart selection, colour theory, and storytelling through Tableau, Power BI, and Python dashboards.',
     tags:['Tableau','Design','Charts'],
-    url:'https://www.coursera.org/learn/data-visualization-tableau'
+    url:'https://www.udemy.com/course/data-visualization'
   },
   {
     id:'c4', title:'Cross-functional Collaboration',
-    provider:'TNQ Academy', duration:'3h', type:'NF', vedKeyword:'CO',
+    provider:'edX', duration:'3h', type:'NF', vedKeyword:'CO',
     icon:'🤝', iconBg:'#fce4ec', iconColor:'#c2185b',
     desc:'Build lasting relationships across teams, lead retrospectives, and systematically document cross-functional outcomes.',
     tags:['Teamwork','Retros','Leadership'],
-    url:'https://www.linkedin.com/learning/cross-functional-team-leadership'
+    url:'https://www.edx.org/course/cross-functional-leadership',
+    completed: true
   },
   {
     id:'c5', title:'Effective Written Communication',
@@ -211,23 +287,23 @@ const CATALOGUE = [
     icon:'✍️', iconBg:'#f3e5f5', iconColor:'#7b1fa2',
     desc:'Structured updates, stakeholder writing, and clarity-first async communication for data and engineering professionals.',
     tags:['Writing','Clarity','Updates'],
-    url:'https://www.coursera.org/learn/writing-for-business'
+    url:'https://tnqacademy.disprz.com/'
   },
   {
     id:'c6', title:'Storytelling with Data',
-    provider:'TNQ Academy', duration:'4h', type:'F', vedKeyword:'DA',
+    provider:'YouTube', duration:'4h', type:'F', vedKeyword:'DA',
     icon:'🎯', iconBg:'#e8f5e9', iconColor:'#388e3c',
     desc:'Turn insights into compelling narratives that drive decisions — includes presentation frameworks and live demos.',
     tags:['Storytelling','Presentation','Narrative'],
-    url:'https://www.udemy.com/course/storytelling-with-data/'
+    url:'https://www.youtube.com/watch?v=8EMW7io4rSI'
   },
   {
     id:'c7', title:'Managing Up & Feedback Culture',
-    provider:'TNQ Academy', duration:'2h', type:'NF', vedKeyword:'CM',
+    provider:'Coursera', duration:'2h', type:'NF', vedKeyword:'CM',
     icon:'🗣️', iconBg:'#e3f2fd', iconColor:'#1976d2',
     desc:'Give and receive feedback effectively, communicate with senior stakeholders, and build a culture of candour.',
     tags:['Feedback','Leadership','Communication'],
-    url:'https://www.linkedin.com/learning/giving-and-receiving-feedback'
+    url:'https://www.coursera.org/learn/feedback'
   },
   {
     id:'c8', title:'Product Thinking for Analysts',
@@ -235,23 +311,23 @@ const CATALOGUE = [
     icon:'💡', iconBg:'#fff3e0', iconColor:'#e65100',
     desc:'Understand product roadmaps, user journeys, OKRs, and how to tie every analysis directly to product outcomes.',
     tags:['Product','OKRs','User Journey'],
-    url:'https://www.coursera.org/learn/introduction-to-product-management'
+    url:'https://tnqacademy.disprz.com/'
   },
   {
     id:'c9', title:'Data Collaboration & Peer Review',
-    provider:'TNQ Academy', duration:'2h', type:'NF', vedKeyword:'CO',
+    provider:'Udemy', duration:'2h', type:'NF', vedKeyword:'CO',
     icon:'👥', iconBg:'#e8f5e9', iconColor:'#2e7d32',
     desc:'Establish peer review workflows for analytical work, give constructive reviews, and document team decisions.',
     tags:['Peer Review','Collaboration','Documentation'],
-    url:'https://www.linkedin.com/learning/communicating-with-confidence'
+    url:'https://www.udemy.com/course/data-collaboration'
   },
   {
     id:'c10', title:'Python for Data Analysis',
-    provider:'TNQ Academy', duration:'8h', type:'F', vedKeyword:'DA',
+    provider:'edX', duration:'8h', type:'F', vedKeyword:'DA',
     icon:'🐍', iconBg:'#f0f4ff', iconColor:'#3949ab',
     desc:'pandas, NumPy, Matplotlib and Seaborn — from data wrangling to publishing reproducible analysis notebooks.',
     tags:['Python','pandas','Notebooks'],
-    url:'https://www.coursera.org/learn/python-for-applied-data-science-ai'
+    url:'https://www.edx.org/course/python-for-data-science'
   },
 ];
 
@@ -265,7 +341,6 @@ async function loadAll() {
   CYCLES     = cR.data || [];
   VEDS       = vR.data || [];
   APPRAISALS = aR.data || [];
-  // Enrich action items with competency from VEDS array
   ACTION_ITEMS = (aiR.data || []).map(a => ({
     ...a,
     competency: VEDS.find(v => v.id === a.competency_id) || null
@@ -311,8 +386,14 @@ function renderActionCard(a) {
   const isSel  = a.id === selectedActionId;
   const code   = a.competency?.code || '';
   const type   = a.competency?.type || '';
-  const matchCount = CATALOGUE.filter(c => c.vedKeyword === code).length;
-  return `<div class="action-item ${isDone ? 'done-item' : ''} ${isSel ? 'selected' : ''}" id="ai-${a.id}" onclick="selectAction('${a.id}','${code}')">
+  // Check how many courses match this action item AND the current provider filter
+  let matchedCourses = CATALOGUE.filter(c => c.vedKeyword === code);
+  if (currentProvider) {
+    matchedCourses = matchedCourses.filter(c => c.provider === currentProvider);
+  }
+  const matchCount = matchedCourses.length;
+  
+  return `<div class="action-item ${isDone ? 'done-item' : ''} ${isSel ? 'selected' : ''}" id="ai-${a.id}" ${isDone ? '' : `onclick="selectAction('${a.id}','${code}')"`}>
     <div class="action-top">
       <div class="action-check ${isDone ? 'done' : ''}" onclick="event.stopPropagation();toggleAction('${a.id}','${a.status}')">${isDone ? '✓' : ''}</div>
       <div class="action-title ${isDone ? 'done-text' : ''}">${a.description}</div>
@@ -328,7 +409,6 @@ function renderActionCard(a) {
 
 function selectAction(id, code) {
   if (selectedActionId === id) {
-    // deselect — clear filter
     selectedActionId = null;
     selectedVedCode  = null;
   } else {
@@ -355,13 +435,29 @@ function setTab(tab) {
   renderCourses();
 }
 
+function setProvider(provider, btnEl) {
+  currentProvider = provider;
+  const btns = btnEl.parentElement.querySelectorAll('.pf-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  renderActionItems(); // update counts
+  renderCourses();
+}
+
+function setStatus(status, btnEl) {
+  currentStatus = status;
+  const btns = btnEl.parentElement.querySelectorAll('.pf-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  renderCourses();
+}
+
 function getWeakVedCodes() {
-  // VEDs where user's self score < 4 OR self > manager (perception gap)
   const ac = CYCLES.find(c => c.is_active);
   if (!ac) return [];
   return VEDS.filter(v => {
     const a = APPRAISALS.find(x => x.competency_id === v.id && x.cycle_id === ac.id);
-    if (!a) return VEDS.length > 0; // if no appraisal yet, show all
+    if (!a) return VEDS.length > 0;
     return (a.self_score || 0) < 4 || (a.self_score || 0) > (a.manager_score || 0);
   }).map(v => v.code);
 }
@@ -372,51 +468,69 @@ function renderCourses() {
   const weakVeds = getWeakVedCodes();
   let courses  = [...CATALOGUE];
 
-  // When an action item is selected, filter courses to its VED
-  if (selectedVedCode) {
-    const selAction = ACTION_ITEMS.find(a => a.id === selectedActionId);
-    const dimName   = selAction?.competency?.name || selectedVedCode;
-    banner.innerHTML = `<div class="filter-banner">
-      📌 Showing courses for <b>${dimName}</b> (${selectedVedCode}) — linked to selected action item
-      <button class="clear-filter" onclick="clearFilter()">Clear filter ✕</button>
-    </div>`;
-    courses = courses.filter(c => c.vedKeyword === selectedVedCode);
-  } else {
+  // 1. Filter by provider
+  if (currentProvider) {
+    courses = courses.filter(c => c.provider === currentProvider);
+  }
+
+  // 2. Filter by status
+  if (currentStatus === 'completed') {
+    courses = courses.filter(c => c.completed);
+  } else if (currentStatus === 'pending') {
+    courses = courses.filter(c => !c.completed);
+  }
+
+  // 3. Filter by Tab OR Action Item
+  if (currentTab === 'all') {
+    // "All courses" ignores selected action items entirely
     banner.innerHTML = '';
-    if (currentTab === 'matched') {
+  } else {
+    // "Matched to you" tab
+    if (selectedVedCode) {
+      const selAction = ACTION_ITEMS.find(a => a.id === selectedActionId);
+      const dimName   = selAction?.competency?.name || selectedVedCode;
+      banner.innerHTML = `<div class="filter-banner">
+        📌 Showing courses for <b>${dimName}</b> (${selectedVedCode})
+        <button class="clear-filter" onclick="clearFilter()">Clear filter ✕</button>
+      </div>`;
+      courses = courses.filter(c => c.vedKeyword === selectedVedCode);
+    } else {
+      banner.innerHTML = '';
       courses = courses.filter(c => weakVeds.includes(c.vedKeyword));
     }
   }
 
   if (!courses.length) {
     panel.innerHTML = `<div class="empty-msg">
-      ${selectedVedCode ? `No courses found for <b>${selectedVedCode}</b>.` : 'No matched courses — all your dimensions look strong! Switch to "All courses".'}
-      <br><button style="margin-top:12px;font-size:12px;font-weight:600;color:#1a8c6e;background:none;border:none;cursor:pointer;text-decoration:underline" onclick="setTab('all')">View all courses →</button>
+      No courses found for the current filters.
+      <br><button style="margin-top:12px;font-size:12px;font-weight:600;color:#1a8c6e;background:none;border:none;cursor:pointer;text-decoration:underline" onclick="setTab('all');setProvider(null, document.querySelectorAll('.pf-btn')[0]);setStatus(null, document.querySelectorAll('.status-filters .pf-btn')[0])">View all courses →</button>
     </div>`;
     return;
   }
 
   panel.innerHTML = courses.map(c => {
     const isWeak = weakVeds.includes(c.vedKeyword);
-    const isDimHighlight = c.vedKeyword === selectedVedCode;
-    return `<a class="course-card ${isWeak ? 'matched' : ''} ${isDimHighlight ? 'dim-highlight' : ''}" href="${c.url}" target="_blank" rel="noopener noreferrer" onclick="trackCourseClick('${c.id}')">
+    const isDimHighlight = c.vedKeyword === selectedVedCode && currentTab === 'matched';
+    const isCompleted = !!c.completed;
+    return `<a class="course-card ${isWeak && currentTab === 'matched' ? 'matched' : ''} ${isDimHighlight ? 'dim-highlight' : ''}" href="${c.url}" target="_blank" rel="noopener noreferrer">
       <div class="course-header">
         <div class="course-icon" style="background:${c.iconBg};color:${c.iconColor}">${c.icon}</div>
         <div style="flex:1;min-width:0">
           <div class="course-title">${c.title}</div>
           <div class="course-provider">${c.provider} · ${c.vedKeyword} dimension</div>
           <div class="course-tags">
-            ${isDimHighlight ? `<span class="ctag ctag-matched">✦ Action item match</span>` : isWeak ? `<span class="ctag ctag-matched">Matched to you</span>` : ''}
+            ${isCompleted ? `<span class="ctag" style="background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;font-weight:700">✓ Completed</span>` : ''}
+            ${isDimHighlight ? `<span class="ctag ctag-matched">✦ Action item match</span>` : (isWeak && currentTab === 'matched') ? `<span class="ctag ctag-matched">Matched to you</span>` : ''}
             <span class="ctag ctag-dur">${c.duration}</span>
             ${c.tags.map(t => `<span class="ctag ctag-neutral">${t}</span>`).join('')}
           </div>
         </div>
-        ${(isDimHighlight || isWeak) ? `<span class="match-badge">${isDimHighlight ? '✦' : '↑'} Match</span>` : ''}
+        ${(isDimHighlight || (isWeak && currentTab === 'matched')) ? `<span class="match-badge">${isDimHighlight ? '✦' : '↑'} Match</span>` : ''}
       </div>
       <div class="course-desc">${c.desc}</div>
       <div class="course-footer">
-        <span style="font-size:11px;color:#aaa">${c.type === 'F' ? 'Functional' : 'Non-functional'} · TNQ Academy</span>
-        <span class="enroll-btn">Enroll →</span>
+        <span style="font-size:11px;color:#aaa">${c.type === 'F' ? 'Functional' : 'Non-functional'} · ${c.provider}</span>
+        <span class="enroll-btn">${isCompleted ? 'Review Course →' : 'Enroll →'}</span>
       </div>
     </a>`;
   }).join('');
@@ -427,11 +541,6 @@ function clearFilter() {
   selectedVedCode  = null;
   renderActionItems();
   renderCourses();
-}
-
-function trackCourseClick(id) {
-  // Could log to analytics / DB in future
-  console.log('Course clicked:', id);
 }
 
 // ── Stats panel ────────────────────────────────────────────────
@@ -453,35 +562,104 @@ function renderStats() {
     </div>`;
   }).join('');
 
-  // Action items per VED dimension
-  const vedActionRows = VEDS.map(v => {
-    const items = ACTION_ITEMS.filter(a => a.competency?.code === v.code);
-    const doneN = items.filter(a => a.status === 'done').length;
-    if (!items.length) return '';
-    return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f5f5f5">
-      <span style="color:#555">${v.code}</span>
-      <span style="color:#1a8c6e;font-weight:600">${doneN}/${items.length}</span>
-    </div>`;
-  }).filter(Boolean).join('');
-
   panel.innerHTML = `
     <div class="stats-card">
       <div class="stats-title">Action items</div>
       <div class="stats-num">${done}/${ACTION_ITEMS.length}</div>
       <div class="stats-sub">${pct}% completed this cycle</div>
       <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%"></div></div>
-      ${vedActionRows ? `<div style="margin-top:10px">${vedActionRows}</div>` : ''}
     </div>
     <div class="stats-card">
       <div class="stats-title">Scores by VED</div>
       ${vedRows || '<div style="color:#bbb;font-size:12px;padding:4px 0">No scores recorded yet.</div>'}
-    </div>
-    <div class="stats-card">
-      <div class="stats-title">Matched courses</div>
-      <div class="stats-num">${CATALOGUE.filter(c => weakVeds.includes(c.vedKeyword)).length}</div>
-      <div class="stats-sub">personalised recommendations</div>
-      <div style="font-size:11px;color:#1a8c6e;margin-top:4px">Click any action item to see its specific courses →</div>
     </div>`;
+}
+
+// ── Quiz Logic ────────────────────────────────────────────────
+const QUIZ_QUESTIONS = [
+  { q: 'When communicating complex data to non-technical stakeholders, what should be the primary focus?', opts: ['Technical jargon and exact statistical methods', 'The core narrative and business impact', 'Showing all 15 charts you created', 'Explaining the python code used'], ans: 1 },
+  { q: 'Which SQL function is best used to calculate a running total across a set of rows?', opts: ['GROUP BY', 'JOIN', 'Window Functions (SUM() OVER...)', 'Subqueries'], ans: 2 },
+  { q: 'In product thinking, what is the most important factor when defining a new metric?', opts: ['How easy it is to calculate', 'If it aligns with the core user journey and business OKRs', 'If it sounds impressive to stakeholders', 'If it uses advanced machine learning'], ans: 1 },
+  { q: 'When receiving critical feedback from a manager, the best first step is to:', opts: ['Defend your actions immediately', 'Listen actively and ask clarifying questions', 'Ignore it and continue working', 'Complain to a peer'], ans: 1 },
+  { q: 'What is a primary benefit of using CTEs (Common Table Expressions) in SQL?', opts: ['They make the code run 10x faster', 'They allow you to update data safely', 'They improve readability and modularity of complex queries', 'They automatically visualize the output'], ans: 2 }
+];
+let currentQuizIdx = 0;
+let quizScore = 0;
+
+function openQuizSetup() {
+  const list = document.getElementById('quiz-options-list');
+  // show checkboxes for COURSES instead of action items
+  list.innerHTML = CATALOGUE.map(c => `
+    <label class="quiz-option">
+      <input type="checkbox" checked style="margin-top:3px">
+      <div style="font-size:12px;color:#333;line-height:1.4">
+        <div style="font-weight:600">${c.title}</div>
+        <div style="font-size:10px;color:#888">${c.provider} · ${c.vedKeyword}</div>
+      </div>
+    </label>
+  `).join('');
+  document.getElementById('quiz-setup-modal').classList.add('open');
+}
+
+function closeQuizSetup() {
+  document.getElementById('quiz-setup-modal').classList.remove('open');
+}
+
+function startQuiz() {
+  closeQuizSetup();
+  currentQuizIdx = 0;
+  quizScore = 0;
+  renderQuizQuestion();
+  document.getElementById('quiz-play-modal').classList.add('open');
+}
+
+function closeQuizPlay() {
+  document.getElementById('quiz-play-modal').classList.remove('open');
+}
+
+function renderQuizQuestion() {
+  document.getElementById('quiz-next-btn').style.display = 'none';
+  if (currentQuizIdx >= QUIZ_QUESTIONS.length) {
+    document.getElementById('quiz-question-num').textContent = 'Quiz Complete!';
+    document.getElementById('quiz-question-text').textContent = `You scored ${quizScore} out of ${QUIZ_QUESTIONS.length}!`;
+    document.getElementById('quiz-answers').innerHTML = '';
+    document.getElementById('quiz-next-btn').style.display = 'block';
+    document.getElementById('quiz-next-btn').textContent = 'Close Quiz';
+    return;
+  }
+
+  const q = QUIZ_QUESTIONS[currentQuizIdx];
+  document.getElementById('quiz-question-num').textContent = `Question ${currentQuizIdx + 1} of ${QUIZ_QUESTIONS.length}`;
+  document.getElementById('quiz-question-text').textContent = q.q;
+  
+  document.getElementById('quiz-answers').innerHTML = q.opts.map((opt, i) => 
+    `<button class="ans-btn" onclick="selectQuizAnswer(${i}, this)">${opt}</button>`
+  ).join('');
+}
+
+function selectQuizAnswer(selIdx, btnEl) {
+  const q = QUIZ_QUESTIONS[currentQuizIdx];
+  const btns = document.querySelectorAll('.ans-btn');
+  btns.forEach(b => { b.disabled = true; b.style.cursor = 'default'; });
+  
+  if (selIdx === q.ans) {
+    btnEl.classList.add('correct');
+    quizScore++;
+  } else {
+    btnEl.classList.add('wrong');
+    btns[q.ans].classList.add('correct');
+  }
+  
+  document.getElementById('quiz-next-btn').style.display = 'block';
+}
+
+function nextQuizQuestion() {
+  if (currentQuizIdx >= QUIZ_QUESTIONS.length) {
+    closeQuizPlay();
+  } else {
+    currentQuizIdx++;
+    renderQuizQuestion();
+  }
 }
 
 loadAll();

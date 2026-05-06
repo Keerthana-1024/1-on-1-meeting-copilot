@@ -312,36 +312,34 @@ let mockSummaryData = '';
 let mockTranscriptData = null;
 
 async function fetchExistingDocs() {
-  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url').eq('id', meetingId).single();
+  const { data: mtg } = await db.from('meetings').select('transcript_url, summary_url, action_items_url, transcript_content, summary_content, action_items_content').eq('id', meetingId).single();
   if (!mtg) return;
 
   const missing = [];
-  const bBase = window.ENV.BLOB_BASE_URL;
-  const bToken = window.ENV.BLOB_SAS_TOKEN;
-
-  async function fetchBlob(filename, type) {
-    if (!filename) { missing.push(type); return null; }
-    try {
-      const res = await fetch(`${bBase}/${filename}${bToken}`);
-      if (!res.ok) { missing.push(type); return null; }
-      return type === 'summary' ? await res.text() : await res.json();
-    } catch (e) {
-      missing.push(type);
-      return null;
-    }
-  }
 
   // Show the action tab and loading state
   document.getElementById('tab-action').style.display = 'inline-block';
   setTab('action');
-  document.getElementById('mock-summary').textContent = 'Fetching files from Azure...';
+  document.getElementById('mock-summary').textContent = 'Loading meeting documents...';
   document.getElementById('action-items-list').innerHTML = '';
 
-  const [tData, sData, aData] = await Promise.all([
-    fetchBlob(mtg.transcript_url, 'transcript'),
-    fetchBlob(mtg.summary_url, 'summary'),
-    fetchBlob(mtg.action_items_url, 'action items')
-  ]);
+  let tData = null;
+  let sData = null;
+  let aData = null;
+
+  try {
+    if (mtg.transcript_content) tData = JSON.parse(mtg.transcript_content);
+    else missing.push('transcript');
+
+    if (mtg.summary_content) sData = mtg.summary_content;
+    else missing.push('summary');
+
+    if (mtg.action_items_content) aData = JSON.parse(mtg.action_items_content);
+    else missing.push('action items');
+  } catch (e) {
+    console.error("Error parsing document content:", e);
+    missing.push('parsing error');
+  }
 
   if (missing.length > 0) {
     document.getElementById('mock-summary').innerHTML = `<span style="color:#d32f2f;font-weight:bold;padding:12px;display:block;border:1px solid #f7c5c5;background:#fff3f3;border-radius:8px;">Error: File(s) not generated: ${missing.join(', ')}</span>`;
